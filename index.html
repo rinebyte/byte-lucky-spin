@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="id">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lucky Spin</title>
+
+<svg id="wheel" viewBox="0 0 400 400" aria-hidden="true"></svg>
+
+<script>
+/* ═══════════════ KONFIGURASI HADIAH ═══════════════
+   Urutan array = urutan searah jarum jam di roda.
+   Nilainya sengaja diselang-seling, JANGAN diurutkan kecil-ke-besar —
+   kalau urut, user langsung sadar rodanya cuma dekoratif. */
+const PRIZES = [
+  { id: 'p10',  label: 'Rp 10.000',    short: '10K'  },
+  { id: 'p500', label: 'Rp 500.000',   short: '500K' },
+  { id: 'p50',  label: 'Rp 50.000',    short: '50K'  },
+  { id: 'p1jt', label: 'Rp 1.000.000', short: '1 JT' },
+  { id: 'p25',  label: 'Rp 25.000',    short: '25K'  },
+  { id: 'p250', label: 'Rp 250.000',   short: '250K' },
+  { id: 'zonk', label: 'Zonk',         short: 'ZONK' },
+  { id: 'p100', label: 'Rp 100.000',   short: '100K' },
+];
+
+const SEG    = 360 / PRIZES.length;  // 45°
+const MARGIN = 5;                    // jarak aman dari garis pembatas
+const TURNS  = 6;                    // putaran penuh sebelum berhenti
+
+const IS_TEST = new URLSearchParams(location.search).has('test');
+</script>
+
+<script>
+/* ═══════════════ MATEMATIKA PUTARAN ═══════════════
+   Segmen i menempati sudut i×45° s/d (i+1)×45°, diukur searah jarum jam
+   dari jam 12. Jarum penunjuk DIAM di jam 12; yang berputar hanya rodanya. */
+
+function targetRotation(current, index, turns = TURNS) {
+  // jitter bikin roda berhenti agak meleset dari titik tengah segmen.
+  // Tanpa ini roda selalu mendarat presisi di tengah, dan itu terasa palsu.
+  const jitter  = (Math.random() * 2 - 1) * (SEG / 2 - MARGIN);
+  const desired = (360 - (index * SEG + SEG / 2) + jitter + 360) % 360;
+  // delta selalu positif: roda cuma pernah berputar searah jarum jam.
+  const delta   = ((desired - current) % 360 + 360) % 360;
+  // current diakumulasi, tidak pernah di-reset — kalau di-reset, CSS akan
+  // menganimasikan putaran mundur yang panjang di spin berikutnya.
+  return current + turns * 360 + delta;
+}
+
+/* Kebalikan targetRotation: segmen mana yang sedang ada di bawah jarum. */
+function segmentAtPointer(rotation) {
+  return Math.floor((((-rotation % 360) + 360) % 360) / SEG);
+}
+</script>
+
+<script>
+/* ═══════════════ HARNESS TES ═══════════════ */
+const TESTS = [];
+const test = (name, fn) => TESTS.push({ name, fn });
+
+function assert(cond, msg) {
+  if (!cond) throw new Error(msg || 'assertion gagal');
+}
+function assertEq(actual, expected, msg) {
+  if (actual !== expected) {
+    throw new Error(`${msg ? msg + ': ' : ''}harusnya ${expected}, dapatnya ${actual}`);
+  }
+}
+
+async function runTests() {
+  const results = [];
+  for (const t of TESTS) {
+    try {
+      await t.fn();
+      results.push({ name: t.name, ok: true });
+    } catch (e) {
+      results.push({ name: t.name, ok: false, err: e && e.message ? e.message : String(e) });
+    }
+  }
+  const failed = results.filter(r => !r.ok).length;
+  renderTestOverlay(results, failed);
+  window.__TEST_RESULTS__ = { total: results.length, failed, results };
+}
+
+function renderTestOverlay(results, failed) {
+  const box = document.createElement('div');
+  box.id = 'test-overlay';
+  const rows = results.map(r =>
+    `<div class="${r.ok ? 'ok' : 'bad'}">${r.ok ? '✓' : '✗'} ${r.name}` +
+    (r.ok ? '' : `<br><small>${r.err}</small>`) + `</div>`
+  ).join('');
+  box.innerHTML =
+    `<h1 class="${failed ? 'bad' : 'ok'}">${results.length - failed}/${results.length} lolos</h1>${rows}`;
+  document.body.appendChild(box);
+}
+</script>
+
+<script>
+/* ═══════════════ TES: MATEMATIKA PUTARAN ═══════════════ */
+test('sudut berhenti selalu mendarat di segmen target (8 hadiah × 200 acak)', () => {
+  for (let i = 0; i < PRIZES.length; i++) {
+    for (let k = 0; k < 200; k++) {
+      const current = Math.random() * 10000;
+      const r = targetRotation(current, i);
+      assertEq(segmentAtPointer(r), i, `hadiah ${i}, rotasi awal ${current.toFixed(1)}`);
+    }
+  }
+});
+
+test('roda selalu berputar maju minimal TURNS putaran', () => {
+  for (let i = 0; i < PRIZES.length; i++) {
+    for (let k = 0; k < 50; k++) {
+      const current = Math.random() * 10000;
+      assert(targetRotation(current, i) >= current + TURNS * 360,
+        `rotasi target harus >= ${current + TURNS * 360}`);
+    }
+  }
+});
+
+test('sudut berhenti tidak pernah lebih dekat dari MARGIN ke garis pembatas', () => {
+  for (let i = 0; i < PRIZES.length; i++) {
+    for (let k = 0; k < 200; k++) {
+      const r = targetRotation(Math.random() * 10000, i);
+      const local = (((-r % 360) + 360) % 360) % SEG;
+      assert(local >= MARGIN && SEG - local >= MARGIN,
+        `jarak ke pembatas cuma ${Math.min(local, SEG - local).toFixed(2)}°`);
+    }
+  }
+});
+
+test('jumlah putaran bisa dikurangi lewat parameter turns', () => {
+  const r = targetRotation(0, 3, 1);
+  assert(r >= 360 && r < 720, `dengan turns=1 harusnya 360–720, dapatnya ${r}`);
+  assertEq(segmentAtPointer(r), 3);
+});
+</script>
+
+<script>
+if (IS_TEST) runTests();
+</script>
