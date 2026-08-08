@@ -130,6 +130,66 @@ def _(page, base):
     )
 
 
+@flow("tombol mute bisa ditekan dan pilihannya tersimpan")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    assert page.get_attribute("#mute-btn", "data-muted") == "false"
+    page.click("#mute-btn")
+    assert page.get_attribute("#mute-btn", "data-muted") == "true"
+    page.reload()
+    assert page.get_attribute("#mute-btn", "data-muted") == "true", "pilihan mute harus bertahan"
+
+
+COUNT_OSCILLATORS = """() => {
+  window.__osc = 0;
+  const proto = (window.AudioContext || window.webkitAudioContext).prototype;
+  const orig = proto.createOscillator;
+  proto.createOscillator = function () { window.__osc++; return orig.call(this); };
+}"""
+
+
+@flow("spin membangkitkan bunyi, dan benar-benar senyap saat di-mute")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    page.evaluate(COUNT_OSCILLATORS)
+    page.fill("#token-input", "LUCKY10")
+    page.click("#validate-btn")
+    page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
+    page.click("#spin-btn")
+    page.wait_for_selector("#result-modal[data-open='true']", timeout=15000)
+    page.wait_for_timeout(600)          # beri waktu arpeggio penutup selesai
+    loud = page.evaluate("window.__osc")
+    assert loud >= 3, f"harusnya ada tik + nada penutup, dapatnya {loud} oscillator"
+
+    # Modal menutupi tombol mute selama masih terbuka — itu memang tugas modal.
+    page.click("#close-result")
+    # state="hidden": modal tertutup itu display:none, jadi menunggu "visible"
+    # (default Playwright) akan selalu timeout.
+    page.wait_for_selector("#result-modal[data-open='false']", state="hidden", timeout=5000)
+    page.click("#mute-btn")
+    page.evaluate("window.__osc = 0")
+    page.fill("#token-input", "LUCKY25")
+    page.click("#validate-btn")
+    page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
+    page.click("#spin-btn")
+    page.wait_for_selector("#result-modal[data-open='true']", timeout=15000)
+    page.wait_for_timeout(600)
+    quiet = page.evaluate("window.__osc")
+    assert quiet == 0, f"saat mute harusnya nol bunyi, dapatnya {quiet}"
+
+
+@flow("tidak ada source code yang bocor kerender ke halaman")
+def _(page, base):
+    # Kalau sebuah <script> terpotong, sisa JS-nya dirender sebagai teks biasa
+    # dan markup di dalam string jadi elemen sungguhan. Gampang lolos dari mata.
+    page.goto(f"{base}/index.html")
+    body = page.inner_text("body")
+    for needle in ("const ", "function ", "ERROR_TEXT", "=>"):
+        assert needle not in body, f"source bocor ke halaman: {needle!r}"
+    stray = page.evaluate("document.querySelectorAll('body > svg').length")
+    assert stray == 0, f"ada {stray} <svg> liar langsung di body — tanda script terpotong"
+
+
 def run_flow_tests(browser, base):
     results = []
     for name, fn in FLOW_TESTS:

@@ -303,8 +303,12 @@ seiring roda melambat — itu yang membuat telinga percaya roda melambat karena 
 
 Nada penutup: arpeggio naik pendek saat menang, satu nada rendah saat ZONK.
 
-Tombol 🔊/🔇 kecil di pojok, pilihannya disimpan di localStorage key `luckyspin.muted`.
-Default nyala.
+Tombol kecil di pojok kanan atas, pilihannya disimpan di localStorage key
+`luckyspin.muted`. Default nyala.
+
+Ikonnya SVG garis tipis (speaker bergelombang / speaker bersilang), bukan emoji —
+emoji dirender dengan gaya masing-masing sistem operasi dan bentrok dengan tema
+Noir & Gold. Saat nyala ikonnya emas; saat mute jadi abu redup.
 
 ## 10. Tes
 
