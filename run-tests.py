@@ -323,6 +323,47 @@ def _(page, base):
     assert orn == 3, f"harusnya 3 ornamen antar section, dapatnya {orn}"
 
 
+@flow("sorotan baris Kamu punya ruang napas dan isinya tercentang vertikal")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    page.fill("#token-input", "JACKPOT")
+    page.click("#validate-btn")
+    page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
+    page.click("#spin-btn")
+    page.wait_for_selector("#result-modal[data-open='true']", timeout=15000)
+    page.click("#close-result")
+    page.wait_for_selector("#result-modal[data-open='false']", state="hidden", timeout=5000)
+
+    m = page.evaluate("""() => {
+      const row = document.querySelector('#winner-body tr.own');
+      const td = [...row.children];
+      const isi = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect(); };
+      const rowBox = row.getBoundingClientRect();
+      return {
+        pusatBaris:  rowBox.top + rowBox.height / 2,
+        pusatHadiah: isi(td[1]).top + isi(td[1]).height / 2,
+        pusatWaktu:  isi(td[2]).top + isi(td[2]).height / 2,
+        kiriBand:  td[0].getBoundingClientRect().left,
+        kiriTeks:  isi(td[0]).left,
+        kananBand: td[2].getBoundingClientRect().right,
+        kananTeks: isi(td[2]).right,
+      };
+    }""")
+
+    # Nama di baris ini dua baris; kalau hadiah/waktu pakai vertical-align top,
+    # keduanya nempel ke atas dan barisnya terlihat pincang.
+    assert abs(m["pusatBaris"] - m["pusatHadiah"]) <= 3, \
+        f"hadiah tidak tercentang vertikal (selisih {m['pusatBaris'] - m['pusatHadiah']:.1f}px)"
+    assert abs(m["pusatBaris"] - m["pusatWaktu"]) <= 3, \
+        f"waktu tidak tercentang vertikal (selisih {m['pusatBaris'] - m['pusatWaktu']:.1f}px)"
+
+    # Tanpa ruang napas, sorotan mepet ke teks dan terbaca seperti kotak kepotong.
+    kiri = m["kiriTeks"] - m["kiriBand"]
+    kanan = m["kananBand"] - m["kananTeks"]
+    assert kiri >= 6, f"sorotan mepet di kiri ({kiri:.1f}px)"
+    assert kanan >= 6, f"sorotan mepet di kanan ({kanan:.1f}px)"
+
+
 def run_flow_tests(browser, base):
     results = []
     for name, fn in FLOW_TESTS:

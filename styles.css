@@ -345,9 +345,21 @@ body::before {
 .prize-list li.zonk .ico { color: var(--muted); }
 
 /* ── Pemenang Terbaru ── */
-.winner-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+/* Tabel sengaja dilebarkan 10px ke kiri-kanan lalu tiap sel diberi padding
+   sebesar itu juga. Hasilnya: kolom teks tetap sejajar seperti semula, tapi
+   sorotan baris "Kamu" punya ruang napas di kedua ujungnya — tanpa ini
+   sorotannya mepet ke teks dan terbaca seperti kotak kepotong.
+   border-collapse: separate diperlukan supaya sudut sorotan bisa dibulatkan. */
+.winner-table {
+  width: calc(100% + 20px);
+  margin-inline: -10px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.winner-table th, .winner-table td { padding-inline: 10px; }
 .winner-table th {
-  padding: 0 0 9px;
+  padding-block: 0 9px;
   text-align: left;
   font-size: 10px;
   font-weight: 500;
@@ -358,8 +370,10 @@ body::before {
 }
 .winner-table th:last-child { text-align: right; }
 .winner-table td {
-  padding: 10px 0;
-  vertical-align: top;
+  padding-block: 10px;
+  /* middle, bukan top: baris "Kamu" dua baris tinggi, dan dengan top
+     hadiah serta waktunya nempel ke atas dan barisnya terlihat pincang. */
+  vertical-align: middle;
   border-bottom: 1px solid rgba(255,255,255,.05);
 }
 .winner-table tr:last-child td { border-bottom: 0; }
@@ -376,13 +390,19 @@ body::before {
 }
 .winner-table .tok {
   display: block;
+  line-height: 1.3;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   letter-spacing: .06em;
   color: var(--muted);
 }
 .winner-table tr.own td { background: rgba(212,175,55,.07); }
-.winner-table tr.own td:first-child { color: var(--gold); font-weight: 600; }
+.winner-table tr.own td:first-child {
+  color: var(--gold);
+  font-weight: 600;
+  border-radius: 9px 0 0 9px;
+}
+.winner-table tr.own td:last-child { border-radius: 0 9px 9px 0; }
 
 /* ── ornamen art-deko antar section ── */
 .ornament {
