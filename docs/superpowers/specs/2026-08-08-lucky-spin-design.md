@@ -52,7 +52,19 @@ Pengamanan sungguhnya baru ada saat validasi pindah ke server (lihat §11).
 
 ## 3. Struktur
 
-Satu file: `index.html`. Di dalamnya dipisah jadi blok-blok dengan batas jelas:
+**Diperbarui 2026-08-08 (upgrade tampilan):** aplikasi dipecah jadi empat berkas.
+
+| Berkas | Isi | Dimuat |
+|---|---|---|
+| `index.html` | Markup saja, nol logika | selalu |
+| `styles.css` | Seluruh gaya | selalu |
+| `app.js` | Semua modul + boot | selalu |
+| `tests.js` | Harness + seluruh tes | hanya saat `?test=1` |
+
+Semua memakai `<script>` klasik, **bukan** `type="module"` — module diblokir CORS di
+`file://`, yang berarti klik-dua-kali `index.html` akan mati total.
+
+Modul di dalam `app.js`, dengan batas yang sama seperti rancangan awal:
 
 | Blok | Tanggung jawab | Bergantung pada |
 |---|---|---|
@@ -63,25 +75,26 @@ Satu file: `index.html`. Di dalamnya dipisah jadi blok-blok dengan batas jelas:
 | `Sound` | AudioContext, bunyi tik, nada penutup | — |
 | `App` | State machine + wiring DOM | semua di atas |
 
-File pendukung: `README.md` (cara pakai + daftar token dummy).
+File pendukung: `README.md` (cara pakai + daftar token dummy), `sounds/win.mp3`.
 
 ## 4. Data
 
 ```js
 const PRIZES = [                          // urutan array = urutan searah jarum jam
-  { id: 'p10',  label: 'Rp 10.000',    short: '10K'  },
-  { id: 'p500', label: 'Rp 500.000',   short: '500K' },
-  { id: 'p50',  label: 'Rp 50.000',    short: '50K'  },
-  { id: 'p1jt', label: 'Rp 1.000.000', short: '1 JT' },
-  { id: 'p25',  label: 'Rp 25.000',    short: '25K'  },
-  { id: 'p250', label: 'Rp 250.000',   short: '250K' },
-  { id: 'zonk', label: 'Zonk',         short: 'ZONK' },
-  { id: 'p100', label: 'Rp 100.000',   short: '100K' },
+  { id: 'p10',  label: 'Rp 10.000',    short: '10K',  value: 10000   },
+  { id: 'p500', label: 'Rp 500.000',   short: '500K', value: 500000  },
+  { id: 'p50',  label: 'Rp 50.000',    short: '50K',  value: 50000   },
+  { id: 'p1jt', label: 'Rp 1.000.000', short: '1 JT', value: 1000000 },
+  { id: 'p25',  label: 'Rp 25.000',    short: '25K',  value: 25000   },
+  { id: 'p250', label: 'Rp 250.000',   short: '250K', value: 250000  },
+  { id: 'zonk', label: 'Zonk',         short: 'ZONK', value: 0       },
+  { id: 'p100', label: 'Rp 100.000',   short: '100K', value: 100000  },
 ];
 ```
 
 Nilai sengaja diselang-seling (10K → 500K → 50K → 1JT), bukan urut kecil-ke-besar. Kalau
 urut, user langsung sadar rodanya dekoratif begitu melihat jarum mendekat.
+Field `value` dipakai HANYA untuk mengurutkan Daftar Hadiah (§12), bukan oleh roda.
 
 ```js
 const DUMMY_TOKENS = {
@@ -301,10 +314,19 @@ Tik: oscillator triangle ~1100Hz dengan envelope gain turun cepat (~30ms). Tidak
 audio. Karena tik terikat ke **posisi** roda dan bukan ke waktu, tiknya melambat sendiri
 seiring roda melambat — itu yang membuat telinga percaya roda melambat karena gesekan.
 
-Nada penutup: arpeggio naik pendek saat menang, satu nada rendah saat ZONK.
+Nada penutup: satu nada rendah saat ZONK, tetap dibangkitkan WebAudio.
 
-Tombol 🔊/🔇 kecil di pojok, pilihannya disimpan di localStorage key `luckyspin.muted`.
-Default nyala.
+Suara menang memakai rekaman asli `sounds/win.mp3` (mixkit-bonus-collect-award, 1,8
+detik). Ini satu-satunya aset audio, dan konsekuensinya aplikasi tidak lagi benar-benar
+satu file — folder `sounds/` harus ikut dibawa. Tik sengaja TIDAK diganti rekaman
+karena keterikatannya ke posisi roda itulah yang memberi rasa melambat.
+
+Tombol kecil di pojok kanan atas, pilihannya disimpan di localStorage key
+`luckyspin.muted`. Default nyala.
+
+Ikonnya SVG garis tipis (speaker bergelombang / speaker bersilang), bukan emoji —
+emoji dirender dengan gaya masing-masing sistem operasi dan bentrok dengan tema
+Noir & Gold. Saat nyala ikonnya emas; saat mute jadi abu redup.
 
 ## 10. Tes
 
@@ -343,3 +365,92 @@ Server yang memegang daftar token, menentukan hadiah, dan mencatat token terpaka
 karena hanya dipakai menggambar roda — server cukup mengirim `prizeId`.
 
 Setelah itu barulah hadiah benar-benar tidak bisa diintip dari browser.
+
+
+## 12. Upgrade tampilan (2026-08-08)
+
+Tujuan: halaman tidak lagi terasa suram, sedikit lebih ramai, tanpa melepas kesan
+premium. Arah yang dipilih adalah **Noir & Gold diangkat**, bukan pindah palet.
+
+### Palet
+
+| Peran | Sebelum | Sesudah |
+|---|---|---|
+| Latar | `#08080B` | `#0E0E16` (charcoal kebiruan) |
+| Panel | `#101016` | `#16161F` |
+| Teks redup | `#7C7C86` | `#8E8E9C` |
+| Garis rambut | `rgba(212,175,55,.25)` | `rgba(212,175,55,.32)` |
+
+### Latar
+
+Kisi berlian art-deko dari dua `repeating-linear-gradient` bersilang di ±45°,
+opacity `.05`. Nol byte gambar dan tajam di DPI berapa pun. Opacity sengaja rendah:
+pattern latar yang kentara akan berkelahi dengan teks.
+
+Di atasnya, `body::before` **fixed** membawa dua lapis cahaya ambient — sorot emas
+di atas, pendar biru-violet di bawah. Dipasang fixed supaya tidak melar mengikuti
+tinggi halaman saat section bertambah. Kegelapan berlapis terbaca "mewah";
+kegelapan rata terbaca "suram".
+
+### Section baru
+
+**Cara Main** — tiga langkah bernomor, markup statis.
+
+**Daftar Hadiah** — grid dua kolom, digambar dari `PRIZES` sehingga tidak pernah
+bisa melenceng dari isi roda. Urutannya **sengaja beda dari roda**: roda diacak agar
+tidak terlihat dekoratif, sedangkan daftar diurutkan dari nilai terbesar karena
+daftar berurutan acak terbaca sembarangan. Untuk itu setiap hadiah mendapat field
+`value`. ZONK diredupkan dan selalu di posisi terakhir.
+
+**Pemenang Terbaru** — tabel tiga kolom (Pemain / Hadiah / Waktu), maksimal
+`MAX_WINNER_ROWS` = 8 baris.
+
+### WinnerStore
+
+```js
+createWinnerStore(storage, key?, seeds?) → {
+  add(prize: string, token: string): void,   // HANYA dipanggil saat menang
+  list(now?): Array<{name, prize, token, at, own}>,
+}
+```
+
+Kemenangan user disimpan di localStorage key `luckyspin.winners` dan selalu berada
+di atas seed. Barisnya diberi label `Kamu` dengan token tersamar (`LUCKY100` →
+`LUC•••00`). Fallback ke memori kalau storage diblokir, sama seperti `UsedTokens`.
+
+`relativeTime(ms, now?)` memetakan selisih waktu ke `baru saja` / `N menit lalu` /
+`N jam lalu` / `kemarin` / `N hari lalu`.
+
+**ZONK tidak pernah masuk tabel.** Ada tesnya.
+
+### Kejujuran data
+
+Enam baris seed adalah **data karangan** — pemain-pemain itu tidak ada. Tujuannya
+supaya tabel tidak kosong melompong saat pertama dibuka. Tidak ada jackpot di seed,
+supaya kemenangan besar user sendiri tidak terlihat murahan.
+
+Kalau halaman ini nanti dipakai dengan user sungguhan, seed harus diganti catatan
+pemenang asli dari server. Menampilkan pemenang karangan seolah nyata kepada user
+sungguhan adalah klaim palsu, bukan sekadar dekorasi.
+
+### Ikon dan ornamen
+
+Halaman versi pertama nyaris seluruhnya teks — hanya roda yang berupa grafik. Untuk
+memecah itu:
+
+- **Ikon garis dari Lucide (ISC)** di tiap judul kartu (`book-open`, `gift`, `trophy`),
+  tiap langkah Cara Main (`ticket`, `rotate-cw`, `hand-coins`), dan tiap sel Daftar
+  Hadiah (`coins`, `circle-off` untuk ZONK).
+- **Ornamen art-deko** di antara section: berlian kecil diapit garis emas yang
+  meredup. Dibangun dari CSS, bukan gambar.
+
+Gaya garis dipilih supaya senada dengan ikon tombol mute yang lebih dulu ada.
+Mencampur gaya garis dan siluet padat akan membuat halaman terlihat lebih berantakan,
+bukan lebih kaya — karena itu **semua** ikon wajib memakai kelas `.ico` yang sama, dan
+ada tes yang gagal begitu ada `<svg>` ikon lolos tanpa kelas itu.
+
+Nomor pada langkah Cara Main diganti ikon: urutannya sudah jelas dari susunan vertikal,
+sementara ikon menambah isi visual yang justru sedang dicari.
+
+Asset raster tidak dipakai sama sekali. Ikon stock bergaya game (mis. Kenney) sudah
+dipertimbangkan dan ditolak: gayanya flat dan berwarna, bertabrakan dengan Noir & Gold.
