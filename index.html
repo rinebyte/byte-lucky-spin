@@ -53,6 +53,106 @@ function segmentAtPointer(rotation) {
 </script>
 
 <script>
+/* ═══════════════ PENYIMPANAN TOKEN TERPAKAI ═══════════════ */
+
+function memoryStorage() {
+  const map = new Map();
+  return {
+    getItem: (k) => (map.has(k) ? map.get(k) : null),
+    setItem: (k, v) => { map.set(k, String(v)); },
+  };
+}
+
+/* localStorage bisa melempar error di mode private. Kita probe dulu;
+   kalau gagal, aplikasi tetap jalan pakai memori — catatannya saja yang
+   hilang saat tab ditutup. */
+function safeStorage() {
+  try {
+    localStorage.setItem('luckyspin.probe', '1');
+    localStorage.removeItem('luckyspin.probe');
+    return localStorage;
+  } catch (e) {
+    return memoryStorage();
+  }
+}
+
+function createUsedTokens(storage, key = 'luckyspin.used') {
+  let fallback = null;
+
+  function read() {
+    if (fallback) return fallback;
+    try {
+      const raw = storage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      fallback = [];
+      return fallback;
+    }
+  }
+
+  function write(list) {
+    if (fallback) { fallback = list; return; }
+    try {
+      storage.setItem(key, JSON.stringify(list));
+    } catch (e) {
+      fallback = list;
+    }
+  }
+
+  return {
+    has: (token) => read().includes(token),
+    add: (token) => {
+      const list = read();
+      if (!list.includes(token)) { list.push(token); write(list); }
+    },
+  };
+}
+
+/* ═══════════════ TOKEN ═══════════════ */
+
+const DUMMY_TOKENS = {
+  'LUCKY10':  'p10',
+  'LUCKY25':  'p25',
+  'LUCKY50':  'p50',
+  'LUCKY100': 'p100',
+  'LUCKY250': 'p250',
+  'LUCKY500': 'p500',
+  'JACKPOT':  'p1jt',
+  'APESBGT':  'zonk',
+};
+
+const normalizeToken = (raw) => String(raw == null ? '' : raw).trim().toUpperCase();
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* SWAP POINT — saat backend siap, ganti isi validate() jadi:
+     const res = await fetch('/api/validate', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ token }),
+     });
+     return res.json();
+   Tanda tangan fungsinya tidak berubah, jadi App tidak perlu disentuh. */
+function createTokenService({ tokens, usedTokens, delayMs = 700 }) {
+  return {
+    async validate(raw) {
+      const token = normalizeToken(raw);
+      if (!token) return { ok: false, reason: 'empty' };
+
+      await sleep(delayMs);   // meniru waktu proses server
+
+      if (usedTokens.has(token)) return { ok: false, reason: 'used' };
+
+      const prizeId = tokens[token];
+      if (!prizeId) return { ok: false, reason: 'unknown' };
+
+      return { ok: true, prizeId, token };
+    },
+  };
+}
+</script>
+
+<script>
 /* ═══════════════ HARNESS TES ═══════════════ */
 const TESTS = [];
 const test = (name, fn) => TESTS.push({ name, fn });
@@ -131,6 +231,92 @@ test('jumlah putaran bisa dikurangi lewat parameter turns', () => {
   const r = targetRotation(0, 3, 1);
   assert(r >= 360 && r < 720, `dengan turns=1 harusnya 360–720, dapatnya ${r}`);
   assertEq(segmentAtPointer(r), 3);
+});
+</script>
+
+<script>
+/* ═══════════════ TES: PENYIMPANAN & TOKEN ═══════════════ */
+
+// Storage palsu yang selalu melempar error — meniru mode private browsing.
+function brokenStorage() {
+  return {
+    getItem() { throw new Error('storage diblokir'); },
+    setItem() { throw new Error('storage diblokir'); },
+  };
+}
+
+test('normalizeToken menerima huruf kecil dan spasi di ujung', () => {
+  assertEq(normalizeToken(' lucky100 '), 'LUCKY100');
+  assertEq(normalizeToken('LUCKY100'), 'LUCKY100');
+  assertEq(normalizeToken(''), '');
+  assertEq(normalizeToken(null), '');
+  assertEq(normalizeToken(undefined), '');
+});
+
+test('UsedTokens mencatat dan mengingat token terpakai', () => {
+  const used = createUsedTokens(memoryStorage(), 'tes.used');
+  assertEq(used.has('LUCKY100'), false);
+  used.add('LUCKY100');
+  assertEq(used.has('LUCKY100'), true);
+  assertEq(used.has('LUCKY50'), false);
+});
+
+test('UsedTokens tetap jalan saat storage diblokir', () => {
+  const used = createUsedTokens(brokenStorage(), 'tes.used');
+  assertEq(used.has('LUCKY100'), false);
+  used.add('LUCKY100');
+  assertEq(used.has('LUCKY100'), true, 'harus fallback ke memori, bukan melempar error');
+});
+
+test('safeStorage mengembalikan storage yang bisa dipakai', () => {
+  const s = safeStorage();
+  s.setItem('tes.probe', 'x');
+  assertEq(s.getItem('tes.probe'), 'x');
+});
+
+test('token valid mengembalikan prizeId-nya', async () => {
+  const svc = createTokenService({
+    tokens: { 'LUCKY100': 'p100' },
+    usedTokens: createUsedTokens(memoryStorage(), 'tes.used'),
+    delayMs: 0,
+  });
+  const res = await svc.validate('lucky100');
+  assertEq(res.ok, true);
+  assertEq(res.prizeId, 'p100');
+  assertEq(res.token, 'LUCKY100');
+});
+
+test('input kosong ditolak dengan reason empty', async () => {
+  const svc = createTokenService({
+    tokens: {}, usedTokens: createUsedTokens(memoryStorage(), 'tes.used'), delayMs: 0,
+  });
+  assertEq((await svc.validate('   ')).reason, 'empty');
+});
+
+test('token asing ditolak dengan reason unknown', async () => {
+  const svc = createTokenService({
+    tokens: { 'LUCKY100': 'p100' },
+    usedTokens: createUsedTokens(memoryStorage(), 'tes.used'),
+    delayMs: 0,
+  });
+  assertEq((await svc.validate('NGARANG')).reason, 'unknown');
+});
+
+test('token bekas ditolak dengan reason used dan tanpa bocorin hadiah', async () => {
+  const used = createUsedTokens(memoryStorage(), 'tes.used');
+  const svc = createTokenService({ tokens: { 'LUCKY100': 'p100' }, usedTokens: used, delayMs: 0 });
+  used.add('LUCKY100');
+  const res = await svc.validate('LUCKY100');
+  assertEq(res.ok, false);
+  assertEq(res.reason, 'used');
+  assertEq(res.prizeId, undefined, 'hadiah tidak boleh ikut dikirim untuk token bekas');
+});
+
+test('setiap hadiah punya satu token dummy', () => {
+  const ids = Object.values(DUMMY_TOKENS);
+  for (const prize of PRIZES) {
+    assert(ids.includes(prize.id), `tidak ada token dummy untuk ${prize.id}`);
+  }
 });
 </script>
 
