@@ -432,3 +432,25 @@ supaya kemenangan besar user sendiri tidak terlihat murahan.
 Kalau halaman ini nanti dipakai dengan user sungguhan, seed harus diganti catatan
 pemenang asli dari server. Menampilkan pemenang karangan seolah nyata kepada user
 sungguhan adalah klaim palsu, bukan sekadar dekorasi.
+
+### Ikon dan ornamen
+
+Halaman versi pertama nyaris seluruhnya teks — hanya roda yang berupa grafik. Untuk
+memecah itu:
+
+- **Ikon garis dari Lucide (ISC)** di tiap judul kartu (`book-open`, `gift`, `trophy`),
+  tiap langkah Cara Main (`ticket`, `rotate-cw`, `hand-coins`), dan tiap sel Daftar
+  Hadiah (`coins`, `circle-off` untuk ZONK).
+- **Ornamen art-deko** di antara section: berlian kecil diapit garis emas yang
+  meredup. Dibangun dari CSS, bukan gambar.
+
+Gaya garis dipilih supaya senada dengan ikon tombol mute yang lebih dulu ada.
+Mencampur gaya garis dan siluet padat akan membuat halaman terlihat lebih berantakan,
+bukan lebih kaya — karena itu **semua** ikon wajib memakai kelas `.ico` yang sama, dan
+ada tes yang gagal begitu ada `<svg>` ikon lolos tanpa kelas itu.
+
+Nomor pada langkah Cara Main diganti ikon: urutannya sudah jelas dari susunan vertikal,
+sementara ikon menambah isi visual yang justru sedang dicari.
+
+Asset raster tidak dipakai sama sekali. Ikon stock bergaya game (mis. Kenney) sudah
+dipertimbangkan dan ditolak: gayanya flat dan berwarna, bertabrakan dengan Noir & Gold.

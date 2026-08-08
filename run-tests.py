@@ -300,6 +300,29 @@ def _(page, base):
     assert "Zonk" not in body, f"kata Zonk bocor ke tabel pemenang: {body}"
 
 
+@flow("ikon terpasang di tiap kartu dan seragam satu gaya")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    for sel in ("#how-to h2 .ico", "#prizes h2 .ico", "#winners h2 .ico"):
+        assert page.locator(sel).count() == 1, f"judul tanpa ikon: {sel}"
+
+    steps = page.eval_on_selector_all(".step-n .ico", "els => els.length")
+    assert steps == 3, f"tiap langkah harus punya ikon, dapatnya {steps}"
+
+    cells = page.eval_on_selector_all("#prize-list li .ico", "els => els.length")
+    assert cells == 8, f"tiap sel hadiah harus punya ikon, dapatnya {cells}"
+
+    # Gaya tunggal: tidak boleh ada <svg> ikon yang lupa memakai kelas .ico.
+    # #wheel dikecualikan — itu grafik, bukan ikon.
+    liar = page.eval_on_selector_all(
+        "svg:not(.ico)", "els => els.filter(e => e.id !== 'wheel').length"
+    )
+    assert liar == 0, f"ada {liar} svg ikon di luar gaya .ico"
+
+    orn = page.eval_on_selector_all(".ornament", "els => els.length")
+    assert orn == 3, f"harusnya 3 ornamen antar section, dapatnya {orn}"
+
+
 def run_flow_tests(browser, base):
     results = []
     for name, fn in FLOW_TESTS:

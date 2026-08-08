@@ -384,9 +384,9 @@ function createSound(storage, makeContext) {
    sistem dan bentrok dengan tema Noir & Gold. */
 const SPEAKER_BODY = '<path d="M4 9.4v5.2h3.3L12 18.6V5.4L7.3 9.4H4z"/>';
 const ICONS = {
-  on: `<svg viewBox="0 0 24 24" aria-hidden="true">${SPEAKER_BODY}` +
+  on: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${SPEAKER_BODY}` +
       '<path d="M15.5 9.3a4 4 0 0 1 0 5.4"/><path d="M18 6.8a7.4 7.4 0 0 1 0 10.4"/></svg>',
-  off: `<svg viewBox="0 0 24 24" aria-hidden="true">${SPEAKER_BODY}` +
+  off: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${SPEAKER_BODY}` +
        '<path d="M16.2 10.2l4.4 4.4"/><path d="M20.6 10.2l-4.4 4.4"/></svg>',
 };
 
@@ -652,12 +652,31 @@ function prizesByValue() {
   return PRIZES.slice().sort((a, b) => b.value - a.value);
 }
 
+/* Ikon garis dari Lucide (lisensi ISC) — dipakai untuk sel hadiah yang
+   digambar lewat JS. Ikon yang statis ada langsung di index.html. */
+const ICON = {
+  coins: '<path d="M13.744 17.736a6 6 0 1 1-7.48-7.48"/><path d="M15 6h1v4"/>' +
+         '<path d="m6.134 14.768.866-.5 2 3.464"/><circle cx="16" cy="8" r="6"/>',
+  circleOff: '<path d="m2 2 20 20"/><path d="M8.35 2.69A10 10 0 0 1 21.3 15.65"/>' +
+             '<path d="M19.08 19.08A10 10 0 1 1 4.92 4.92"/>',
+};
+
+function iconSvg(inner) {
+  return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + inner + '</svg>';
+}
+
 function renderPrizeList(el) {
   el.textContent = '';
   for (const p of prizesByValue()) {
     const li = document.createElement('li');
-    if (p.id === 'zonk') li.className = 'zonk';
-    li.textContent = p.label;
+    const zonk = p.id === 'zonk';
+    if (zonk) li.className = 'zonk';
+    // innerHTML hanya untuk markup ikon milik kita sendiri; label hadiah
+    // tetap lewat textContent supaya tidak pernah ditafsirkan sebagai HTML.
+    li.innerHTML = iconSvg(zonk ? ICON.circleOff : ICON.coins);
+    const text = document.createElement('span');
+    text.textContent = p.label;
+    li.append(text);
     el.append(li);
   }
 }

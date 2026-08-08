@@ -67,14 +67,17 @@ body::before {
   transition: color .2s ease, border-color .2s ease;
   z-index: 5;
 }
-#mute-btn svg {
-  width: 19px; height: 19px;
+/* Semua ikon garis memakai kelas ini — gaya tunggal untuk seluruh halaman.
+   Ikon dari Lucide (ISC). */
+.ico {
+  flex: none;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.5;
+  stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+#mute-btn .ico { width: 19px; height: 19px; }
 #mute-btn[data-muted='true'] { color: var(--muted); border-color: rgba(124,124,134,.28); }
 #mute-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
@@ -281,6 +284,9 @@ body::before {
   border-radius: 14px;
 }
 .card h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 0 0 16px;
   font-family: var(--serif);
   font-size: 16px;
@@ -288,20 +294,21 @@ body::before {
   text-transform: uppercase;
   color: var(--gold);
 }
+.card h2 .ico { width: 19px; height: 19px; }
 
 /* ── Cara Main ── */
 .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 15px; }
 .steps li { display: flex; gap: 13px; align-items: flex-start; }
 .step-n {
   flex: none;
-  width: 28px; height: 28px;
+  width: 36px; height: 36px;
   display: grid; place-items: center;
-  border: 1px solid var(--gold);
+  border: 1px solid var(--hairline);
   border-radius: 50%;
+  background: rgba(212,175,55,.06);
   color: var(--gold);
-  font-family: var(--serif);
-  font-size: 13px;
 }
+.step-n .ico { width: 18px; height: 18px; }
 .step-t { font-size: 13px; line-height: 1.55; color: var(--muted); }
 .step-t b {
   display: block;
@@ -317,20 +324,25 @@ body::before {
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
 }
 .prize-list li {
-  padding: 11px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 8px;
   border: 1px solid var(--hairline);
   border-radius: 9px;
   background: rgba(212,175,55,.05);
   font-family: var(--serif);
   font-size: 15px;
   color: var(--label);
-  text-align: center;
 }
+.prize-list .ico { width: 18px; height: 18px; color: var(--gold); }
 .prize-list li.zonk {
   color: var(--muted);
   background: transparent;
   border-color: rgba(142,142,156,.22);
 }
+.prize-list li.zonk .ico { color: var(--muted); }
 
 /* ── Pemenang Terbaru ── */
 .winner-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -371,6 +383,27 @@ body::before {
 }
 .winner-table tr.own td { background: rgba(212,175,55,.07); }
 .winner-table tr.own td:first-child { color: var(--gold); font-weight: 600; }
+
+/* ── ornamen art-deko antar section ── */
+.ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 26px 0 8px;
+}
+.ornament::before, .ornament::after {
+  content: '';
+  height: 1px;
+  width: min(72px, 18vw);
+}
+.ornament::before { background: linear-gradient(90deg, transparent, rgba(212,175,55,.5)); }
+.ornament::after  { background: linear-gradient(90deg, rgba(212,175,55,.5), transparent); }
+.ornament span {
+  width: 7px; height: 7px;
+  transform: rotate(45deg);
+  border: 1px solid var(--gold);
+}
 
 /* ── overlay tes ── */
 #test-overlay {

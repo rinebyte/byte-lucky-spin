@@ -81,6 +81,31 @@ Exit code 1 kalau ada yang gagal.
 
 Suite unit-nya juga bisa dilihat langsung di browser: buka `index.html?test=1`.
 
+## Lisensi pihak ketiga
+
+Ikon garis di halaman ini berasal dari **[Lucide](https://lucide.dev)**, dipakai di
+bawah lisensi ISC. Path SVG-nya disalin langsung ke `index.html` dan `app.js` (tidak
+ada paket npm yang dipasang). Lisensi ISC mensyaratkan pemberitahuan berikut ikut
+disertakan:
+
+```
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+```
+
+Semua ikon memakai kelas `.ico` yang sama supaya gayanya tidak pernah bercabang —
+ada tesnya yang gagal kalau ada `<svg>` ikon lolos tanpa kelas itu.
+
+Suara menang: `sounds/win.mp3`, dari Mixkit (bebas dipakai, tanpa atribusi wajib).
+
+Pattern kisi berlian dan ornamen antar section **bukan** asset — keduanya digambar
+dari CSS, jadi nol byte gambar dan tetap tajam di DPI berapa pun.
+
 ## Catatan keamanan
 
 Ini masih tahap dummy. **Seluruh daftar token dan hadiahnya ada di source code**,
