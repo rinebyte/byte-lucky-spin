@@ -4,7 +4,279 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lucky Spin</title>
 
-<svg id="wheel" viewBox="0 0 400 400" aria-hidden="true"></svg>
+<style>
+:root {
+  --bg:      #08080B;
+  --panel:   #101016;
+  --gold:    #D4AF37;
+  --gold-hi: #F7E7A8;
+  --gold-lo: #7A5F17;
+  --label:   #F0E2B6;
+  --muted:   #7C7C86;
+  --error:   #C6413C;
+  --hairline: rgba(212, 175, 55, .25);
+  --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  background-image: radial-gradient(circle at 50% 32%, rgba(212,175,55,.10), transparent 62%);
+  color: var(--label);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 28px 20px calc(32px + env(safe-area-inset-bottom));
+}
+
+/* ── kepala ── */
+.head { text-align: center; margin-bottom: 22px; }
+.head h1 {
+  font-family: var(--serif);
+  font-size: clamp(30px, 9vw, 42px);
+  letter-spacing: .10em;
+  margin: 0;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold) 55%, var(--gold-lo));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.tagline {
+  margin: 6px 0 0;
+  font-size: 12px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.head::after {
+  content: '';
+  display: block;
+  width: 76px; height: 1px;
+  margin: 16px auto 0;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+/* ── panggung roda ── */
+.stage {
+  position: relative;
+  width: min(86vw, 360px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+}
+#wheel { width: 100%; height: 100%; display: block; }
+
+.pointer {
+  position: absolute;
+  top: -6px; left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 13px solid transparent;
+  border-right: 13px solid transparent;
+  border-top: 26px solid var(--gold);
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.8));
+  z-index: 3;
+}
+
+.hub {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 27%; height: 27%;
+  min-width: 76px; min-height: 76px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  background: radial-gradient(circle at 50% 35%, #23231C, #0C0C10 70%);
+  color: var(--gold-hi);
+  font-family: var(--serif);
+  font-size: clamp(13px, 3.6vw, 16px);
+  letter-spacing: .12em;
+  cursor: pointer;
+  z-index: 2;
+}
+.hub[disabled] { opacity: .45; cursor: default; }
+.hub:not([disabled]) { animation: hub-pulse 1.9s ease-in-out infinite; }
+@keyframes hub-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,55,.42); }
+  50%      { box-shadow: 0 0 0 13px rgba(212,175,55,0); }
+}
+
+.seg-label {
+  font-family: var(--serif);
+  font-size: 25px;
+  font-weight: 700;
+  fill: var(--label);
+}
+.seg-label.zonk { fill: var(--muted); font-size: 21px; }
+
+/* ── panel ── */
+.panel {
+  margin-top: 26px;
+  padding: 20px;
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+}
+.label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+#token-input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  background: #08080C;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  color: var(--gold-hi);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 17px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+#token-input::placeholder { color: #3A3A44; letter-spacing: .16em; }
+#token-input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+#token-input[disabled] { opacity: .5; }
+
+.cta {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold) 52%, var(--gold-lo));
+  color: #14100A;
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  cursor: pointer;
+}
+.cta[disabled] { opacity: .55; cursor: default; }
+.cta:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 3px; }
+
+#error, #status { margin: 12px 0 0; font-size: 13px; text-align: center; min-height: 18px; }
+#error  { color: var(--error); }
+#status { color: var(--gold); letter-spacing: .04em; }
+#error:empty, #status:empty { margin: 0; min-height: 0; }
+
+.shake { animation: shake .34s ease; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  45% { transform: translateX(6px); }
+  70% { transform: translateX(-3px); }
+}
+
+/* ── modal hasil ── */
+#result-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  padding: 22px;
+  background: rgba(4, 4, 6, .82);
+  backdrop-filter: blur(5px);
+  z-index: 10;
+}
+#result-modal[data-open='true'] { display: grid; }
+.modal-card {
+  width: 100%;
+  max-width: 340px;
+  padding: 30px 24px;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--gold);
+  border-radius: 16px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .7);
+}
+.modal-card h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 25px;
+  letter-spacing: .12em;
+  color: var(--gold);
+}
+.modal-sub {
+  margin: 14px 0 4px;
+  font-size: 11px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+#result-text {
+  margin: 0 0 22px;
+  font-family: var(--serif);
+  font-size: 33px;
+  font-weight: 700;
+  color: var(--gold-hi);
+}
+#result-modal[data-lose='true'] .modal-card h2,
+#result-modal[data-lose='true'] #result-text { color: var(--muted); }
+#result-modal[data-lose='true'] .modal-card { border-color: var(--hairline); }
+
+/* ── overlay tes ── */
+#test-overlay {
+  position: fixed; inset: 0; overflow: auto; z-index: 99;
+  padding: 18px; background: #05050A;
+  font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; color: #C9C9D2;
+}
+#test-overlay h1 { font-size: 17px; margin: 0 0 14px; }
+#test-overlay .ok  { color: #4FBF7B; }
+#test-overlay .bad { color: #E0524C; }
+#test-overlay small { color: #E0A0A0; }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap">
+
+<main class="shell">
+  <header class="head">
+    <h1>LUCKY SPIN</h1>
+    <p class="tagline">putar &amp; menangkan hadiah</p>
+  </header>
+
+  <div class="stage">
+    <div class="pointer" aria-hidden="true"></div>
+    <svg id="wheel" viewBox="0 0 400 400" aria-hidden="true"></svg>
+    <button id="spin-btn" type="button" class="hub" disabled>SPIN</button>
+  </div>
+
+  <section class="panel">
+    <form id="token-form" autocomplete="off">
+      <label class="label" for="token-input">Masukkan token</label>
+      <input id="token-input" name="token" type="text" placeholder="LUCKY100"
+             autocapitalize="characters" autocomplete="off" spellcheck="false"
+             enterkeyhint="go" maxlength="24">
+      <button id="validate-btn" type="submit" class="cta">VALIDASI TOKEN</button>
+    </form>
+    <p id="error" role="alert"></p>
+    <p id="status" aria-live="polite"></p>
+  </section>
+</main>
+
+<div id="result-modal" data-open="false" role="dialog" aria-modal="true"
+     aria-labelledby="result-title">
+  <div class="modal-card">
+    <h2 id="result-title">SELAMAT!</h2>
+    <p class="modal-sub">Kamu mendapatkan</p>
+    <p id="result-text">—</p>
+    <button id="close-result" type="button" class="cta">SELESAI</button>
+  </div>
+</div>
 
 <script>
 /* ═══════════════ KONFIGURASI HADIAH ═══════════════
@@ -210,13 +482,19 @@ function createWheel(svgEl, { durationMs = 5200, turns = TURNS } = {}) {
     });
 
     PRIZES.forEach((prize, i) => {
-      const g = el('g', { transform: `rotate(${i * SEG + SEG / 2} ${CX} ${CY})` });
+      const center = i * SEG + SEG / 2;
+      const g = el('g', { transform: `rotate(${center} ${CX} ${CY})` });
       const t = el('text', {
         class: prize.id === 'zonk' ? 'seg-label zonk' : 'seg-label',
         x: CX, y: CY - LABEL_R,
         'text-anchor': 'middle',
         'dominant-baseline': 'middle',
       });
+      // Rotasi grup melempar label paruh bawah jadi terbalik. Diputar 180°
+      // lagi terhadap titiknya sendiri supaya tetap terbaca normal.
+      if (center > 90 && center < 270) {
+        t.setAttribute('transform', `rotate(180 ${CX} ${CY - LABEL_R})`);
+      }
       t.textContent = prize.short;
       g.append(t);
       rotor.append(g);
@@ -295,6 +573,121 @@ function createWheel(svgEl, { durationMs = 5200, turns = TURNS } = {}) {
     render,
     spinTo,
     get rotation() { return rotation; },
+  };
+}
+</script>
+
+<script>
+/* ═══════════════ APLIKASI ═══════════════ */
+
+const ERROR_TEXT = {
+  empty:   'Masukkan token dulu',
+  unknown: 'Token tidak valid',
+  used:    'Token sudah digunakan',
+};
+
+function createApp({ wheel, tokenService, usedTokens, sound }) {
+  const form     = document.getElementById('token-form');
+  const input    = document.getElementById('token-input');
+  const validate = document.getElementById('validate-btn');
+  const spinBtn  = document.getElementById('spin-btn');
+  const errorEl  = document.getElementById('error');
+  const statusEl = document.getElementById('status');
+  const modal    = document.getElementById('result-modal');
+  const resultEl = document.getElementById('result-text');
+  const titleEl  = document.getElementById('result-title');
+  const closeBtn = document.getElementById('close-result');
+  const panel    = document.querySelector('.panel');
+
+  let state = 'IDLE';
+  // Dipegang di variabel JS saja — tidak pernah ditulis ke DOM sebelum
+  // roda berhenti, supaya tidak terbaca dari panel Elements.
+  let session = null;
+
+  function setState(next) {
+    state = next;
+    const busy = next === 'VALIDATING' || next === 'SPINNING';
+    input.disabled = busy || next === 'READY';
+    validate.disabled = busy || next === 'READY';
+    spinBtn.disabled = next !== 'READY';
+    validate.textContent = next === 'VALIDATING' ? 'MEMPROSES…' : 'VALIDASI TOKEN';
+    statusEl.textContent =
+      next === 'READY'   ? '✓ Token valid — tekan SPIN' :
+      next === 'SPINNING' ? 'Memutar…' : '';
+  }
+
+  function showError(reason) {
+    errorEl.textContent = ERROR_TEXT[reason] || 'Terjadi kesalahan';
+    panel.classList.remove('shake');
+    void panel.offsetWidth;          // paksa reflow supaya animasi bisa diulang
+    panel.classList.add('shake');
+  }
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    if (state !== 'IDLE') return;
+
+    errorEl.textContent = '';
+    setState('VALIDATING');
+
+    const res = await tokenService.validate(input.value);
+    if (!res.ok) {
+      setState('IDLE');
+      showError(res.reason);
+      return;
+    }
+
+    session = { token: res.token, prizeId: res.prizeId };
+    setState('READY');
+  }
+
+  async function onSpin() {
+    if (state !== 'READY' || !session) return;
+    setState('SPINNING');
+
+    // Ditandai terpakai saat spin DIMULAI. Kalau ditandai di akhir, user
+    // tinggal refresh di tengah animasi dan tokennya utuh lagi.
+    usedTokens.add(session.token);
+
+    if (sound) sound.unlock();
+
+    const index = prizeIndexById(session.prizeId);
+    await wheel.spinTo(index, { onTick: () => { if (sound) sound.tick(); } });
+
+    const prize = PRIZES[index];
+    const lose = prize.id === 'zonk';
+
+    modal.dataset.lose = String(lose);
+    titleEl.textContent = lose ? 'BELUM BERUNTUNG' : 'SELAMAT!';
+    resultEl.textContent = lose ? 'Zonk' : prize.label;
+    modal.dataset.open = 'true';
+    closeBtn.focus();
+
+    if (sound) (lose ? sound.lose() : sound.win());
+  }
+
+  function closeResult() {
+    modal.dataset.open = 'false';
+    session = null;
+    input.value = '';
+    errorEl.textContent = '';
+    setState('IDLE');
+    input.focus();
+  }
+
+  function onKeydown(e) {
+    if (e.key === 'Escape' && modal.dataset.open === 'true') closeResult();
+  }
+
+  return {
+    start() {
+      wheel.render();
+      form.addEventListener('submit', onSubmit);
+      spinBtn.addEventListener('click', onSpin);
+      closeBtn.addEventListener('click', closeResult);
+      document.addEventListener('keydown', onKeydown);
+      setState('IDLE');
+    },
   };
 }
 </script>
@@ -507,6 +900,17 @@ test('label ZONK ditandai beda supaya bisa diredupkan', () => {
   assert(zonk && zonk.classList.contains('zonk'), 'label ZONK harus punya class zonk');
 });
 
+test('label di paruh bawah dibalik supaya tidak terbaca terbalik', () => {
+  const { svg } = makeTestWheel();
+  const texts = [...svg.querySelectorAll('text.seg-label')];
+  texts.forEach((t, i) => {
+    const center = i * SEG + SEG / 2;
+    const flipped = (t.getAttribute('transform') || '').includes('rotate(180');
+    assertEq(flipped, center > 90 && center < 270,
+      `segmen ${i} di ${center}° salah orientasi`);
+  });
+});
+
 test('render dua kali tidak menggandakan isi roda', () => {
   const { svg, wheel } = makeTestWheel();
   wheel.render();
@@ -538,5 +942,20 @@ test('spinTo memicu onTick beberapa kali selama berputar', async () => {
 </script>
 
 <script>
-if (IS_TEST) runTests();
+if (IS_TEST) {
+  runTests();
+} else {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const wheel = createWheel(document.getElementById('wheel'), {
+    durationMs: window.__SPIN_DURATION__ || (reduce ? 900 : 5200),
+    turns: reduce ? 1 : TURNS,
+  });
+  const usedTokens = createUsedTokens(safeStorage());
+  createApp({
+    wheel,
+    usedTokens,
+    tokenService: createTokenService({ tokens: DUMMY_TOKENS, usedTokens }),
+    sound: null,
+  }).start();
+}
 </script>

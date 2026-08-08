@@ -42,6 +42,119 @@ def run_unit_suite(page, base):
     return page.evaluate("window.__TEST_RESULTS__")
 
 
+FLOW_TESTS = []
+
+
+def flow(name):
+    def deco(fn):
+        FLOW_TESTS.append((name, fn))
+        return fn
+    return deco
+
+
+@flow("token valid bisa divalidasi lalu di-spin sampai muncul hadiahnya")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    page.fill("#token-input", "lucky100")
+    page.click("#validate-btn")
+    page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
+    assert "valid" in page.inner_text("#status").lower(), page.inner_text("#status")
+    page.click("#spin-btn")
+    page.wait_for_selector("#result-modal[data-open='true']", timeout=15000)
+    assert "Rp 100.000" in page.inner_text("#result-text"), page.inner_text("#result-text")
+
+
+@flow("hadiah tidak bocor ke panel sebelum roda berhenti")
+def _(page, base):
+    # Catatan: roda memang selalu menampilkan SEMUA label hadiah — itu wajar.
+    # Yang diuji di sini: panel, status, dan modal tidak boleh membocorkan
+    # hadiah MANA yang bakal keluar.
+    page.goto(f"{base}/index.html")
+    page.fill("#token-input", "JACKPOT")
+    page.click("#validate-btn")
+    page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
+    assert page.get_attribute("#result-modal", "data-open") == "false"
+    for sel in ("#status", "#error", "#result-text"):
+        assert "1.000.000" not in page.inner_text(sel), f"{sel} membocorkan hadiah"
+    panel_html = page.inner_html(".panel")
+    assert "p1jt" not in panel_html and "1.000.000" not in panel_html, panel_html
+
+
+@flow("token asing ditolak")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    page.fill("#token-input", "NGARANGWAE")
+    page.click("#validate-btn")
+    page.wait_for_selector("#error:not(:empty)", timeout=10000)
+    assert "tidak valid" in page.inner_text("#error").lower(), page.inner_text("#error")
+
+
+@flow("input kosong ditolak")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    page.click("#validate-btn")
+    page.wait_for_selector("#error:not(:empty)", timeout=10000)
+    assert "masukkan token" in page.inner_text("#error").lower(), page.inner_text("#error")
+
+
+@flow("token bekas ditolak tanpa membocorkan hadiah")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    page.fill("#token-input", "LUCKY50")
+    page.click("#validate-btn")
+    page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
+    page.click("#spin-btn")
+    page.wait_for_selector("#result-modal[data-open='true']", timeout=15000)
+    page.click("#close-result")
+
+    page.fill("#token-input", "lucky50")
+    page.click("#validate-btn")
+    page.wait_for_selector("#error:not(:empty)", timeout=10000)
+    msg = page.inner_text("#error")
+    assert "sudah digunakan" in msg.lower(), msg
+    assert page.get_attribute("#result-modal", "data-open") == "false"
+    assert "50.000" not in msg, "token bekas tidak boleh membocorkan hadiah"
+    assert page.is_disabled("#spin-btn"), "token bekas tidak boleh mengaktifkan tombol spin"
+
+
+@flow("token ditandai terpakai saat spin dimulai, bukan saat hasil keluar")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    page.fill("#token-input", "LUCKY250")
+    page.click("#validate-btn")
+    page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
+    page.click("#spin-btn")
+    page.wait_for_function(
+        "() => (localStorage.getItem('luckyspin.used') || '').includes('LUCKY250')",
+        timeout=5000,
+    )
+
+
+def run_flow_tests(browser, base):
+    results = []
+    for name, fn in FLOW_TESTS:
+        context = browser.new_context()
+        # Tanpa ini, tes yang gagal menunggu 30 detik per aksi — satu suite
+        # merah jadi butuh bermenit-menit sebelum ketahuan.
+        context.set_default_timeout(8000)
+        context.add_init_script("window.__SPIN_DURATION__ = 120")
+        context.route("**://fonts.googleapis.com/**", lambda r: r.abort())
+        context.route("**://fonts.gstatic.com/**", lambda r: r.abort())
+        page = context.new_page()
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        try:
+            fn(page, base)
+            if errors:
+                raise AssertionError("error JS di halaman: " + "; ".join(errors))
+            results.append({"name": name, "ok": True})
+        except Exception as e:
+            results.append({"name": name, "ok": False, "err": str(e).strip() or repr(e)})
+        finally:
+            context.close()
+    return results
+
+
 def main():
     port = serve()
     base = f"http://127.0.0.1:{port}"
@@ -56,7 +169,14 @@ def main():
         page.route("**://fonts.gstatic.com/**", lambda r: r.abort())
 
         results = run_unit_suite(page, base)
+        page.close()
+
+        flow_results = run_flow_tests(browser, base)
         browser.close()
+
+    results["results"] = results["results"] + flow_results
+    results["total"] += len(flow_results)
+    results["failed"] += sum(1 for r in flow_results if not r["ok"])
 
     for r in results["results"]:
         print(("  \033[32mPASS\033[0m  " if r["ok"] else "  \033[31mFAIL\033[0m  ") + r["name"])
