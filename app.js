@@ -3,14 +3,14 @@
    Nilainya sengaja diselang-seling, JANGAN diurutkan kecil-ke-besar —
    kalau urut, user langsung sadar rodanya cuma dekoratif. */
 const PRIZES = [
-  { id: 'p10',  label: 'Rp 10.000',    short: '10K'  },
-  { id: 'p500', label: 'Rp 500.000',   short: '500K' },
-  { id: 'p50',  label: 'Rp 50.000',    short: '50K'  },
-  { id: 'p1jt', label: 'Rp 1.000.000', short: '1 JT' },
-  { id: 'p25',  label: 'Rp 25.000',    short: '25K'  },
-  { id: 'p250', label: 'Rp 250.000',   short: '250K' },
-  { id: 'zonk', label: 'Zonk',         short: 'ZONK' },
-  { id: 'p100', label: 'Rp 100.000',   short: '100K' },
+  { id: 'p10',  label: 'Rp 10.000',    short: '10K',  value: 10000   },
+  { id: 'p500', label: 'Rp 500.000',   short: '500K', value: 500000  },
+  { id: 'p50',  label: 'Rp 50.000',    short: '50K',  value: 50000   },
+  { id: 'p1jt', label: 'Rp 1.000.000', short: '1 JT', value: 1000000 },
+  { id: 'p25',  label: 'Rp 25.000',    short: '25K',  value: 25000   },
+  { id: 'p250', label: 'Rp 250.000',   short: '250K', value: 250000  },
+  { id: 'zonk', label: 'Zonk',         short: 'ZONK', value: 0       },
+  { id: 'p100', label: 'Rp 100.000',   short: '100K', value: 100000  },
 ];
 
 const SEG    = 360 / PRIZES.length;  // 45°
@@ -396,7 +396,7 @@ const ERROR_TEXT = {
   used:    'Token sudah digunakan',
 };
 
-function createApp({ wheel, tokenService, usedTokens, sound }) {
+function createApp({ wheel, tokenService, usedTokens, sound, winners }) {
   const form     = document.getElementById('token-form');
   const input    = document.getElementById('token-input');
   const validate = document.getElementById('validate-btn');
@@ -410,6 +410,12 @@ function createApp({ wheel, tokenService, usedTokens, sound }) {
   const closeBtn = document.getElementById('close-result');
   const panel    = document.querySelector('.panel');
   const muteBtn  = document.getElementById('mute-btn');
+  const winnerBody = document.getElementById('winner-body');
+  const prizeList  = document.getElementById('prize-list');
+
+  function refreshWinners() {
+    if (winnerBody && winners) renderWinnerRows(winnerBody, winners.list());
+  }
 
   function syncMuteButton() {
     const m = sound ? sound.isMuted() : true;
@@ -482,6 +488,12 @@ function createApp({ wheel, tokenService, usedTokens, sound }) {
     const prize = PRIZES[index];
     const lose = prize.id === 'zonk';
 
+    // Hanya kemenangan yang masuk tabel; ZONK tidak pernah dicatat.
+    if (!lose && winners) {
+      winners.add(prize.label, session.token);
+      refreshWinners();
+    }
+
     modal.dataset.lose = String(lose);
     titleEl.textContent = lose ? 'BELUM BERUNTUNG' : 'SELAMAT!';
     // "Kamu mendapatkan Zonk" bertabrakan dengan "Belum beruntung".
@@ -509,6 +521,8 @@ function createApp({ wheel, tokenService, usedTokens, sound }) {
   return {
     start() {
       wheel.render();
+      if (prizeList) renderPrizeList(prizeList);
+      refreshWinners();
       form.addEventListener('submit', onSubmit);
       spinBtn.addEventListener('click', onSpin);
       closeBtn.addEventListener('click', closeResult);
@@ -518,6 +532,134 @@ function createApp({ wheel, tokenService, usedTokens, sound }) {
       setState('IDLE');
     },
   };
+}
+
+/* ═══════════════ PEMENANG ═══════════════ */
+
+const MAX_WINNER_ROWS = 8;
+const MASK = '•••';
+
+/* Seed dummy supaya tabel tidak kosong melompong saat pertama dibuka.
+   Waktunya relatif terhadap saat halaman dibuka, jadi tidak pernah basi.
+   Sengaja TIDAK ada jackpot di seed: kalau ada, kemenangan besar user
+   sendiri berdampingan dengan jackpot orang lain dan terkesan gampang.
+
+   CATATAN: ini data karangan. Kalau nanti dipakai dengan user sungguhan,
+   ganti seed ini dengan catatan pemenang asli dari server. */
+const SEED_WINNERS = [
+  { name: 'rin' + MASK + 'yte', prize: 'Rp 500.000',   agoMin: 3   },
+  { name: 'and' + MASK + '21',  prize: 'Rp 100.000',   agoMin: 11  },
+  { name: 'dew' + MASK + '99',  prize: 'Rp 10.000',    agoMin: 26  },
+  { name: 'bag' + MASK + '07',  prize: 'Rp 50.000',    agoMin: 48  },
+  { name: 'sit' + MASK + 'ri',  prize: 'Rp 250.000',   agoMin: 95  },
+  { name: 'faj' + MASK + '12',  prize: 'Rp 25.000',    agoMin: 180 },
+];
+
+function maskToken(token) {
+  const t = String(token == null ? '' : token);
+  return t.length <= 5 ? t : t.slice(0, 3) + MASK + t.slice(-2);
+}
+
+function relativeTime(ms, now) {
+  const ref = now === undefined ? Date.now() : now;
+  const menit = Math.floor(Math.max(0, ref - ms) / 60000);
+  if (menit < 1)  return 'baru saja';
+  if (menit < 60) return menit + ' menit lalu';
+  const jam = Math.floor(menit / 60);
+  if (jam < 24)   return jam + ' jam lalu';
+  const hari = Math.floor(jam / 24);
+  return hari === 1 ? 'kemarin' : hari + ' hari lalu';
+}
+
+function createWinnerStore(storage, key = 'luckyspin.winners', seeds = SEED_WINNERS) {
+  let fallback = null;
+
+  function read() {
+    if (fallback) return fallback;
+    try {
+      const raw = storage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      fallback = [];
+      return fallback;
+    }
+  }
+
+  function write(list) {
+    if (fallback) { fallback = list; return; }
+    try {
+      storage.setItem(key, JSON.stringify(list));
+    } catch (e) {
+      fallback = list;
+    }
+  }
+
+  return {
+    /* Hanya dipanggil saat MENANG — ZONK tidak pernah masuk tabel. */
+    add(prize, token) {
+      const list = read();
+      list.unshift({ prize, token: maskToken(token), at: Date.now() });
+      write(list.slice(0, MAX_WINNER_ROWS));
+    },
+    list(now) {
+      const ref = now === undefined ? Date.now() : now;
+      const own = read().map(w => ({
+        name: 'Kamu', prize: w.prize, token: w.token, at: w.at, own: true,
+      }));
+      const seeded = seeds.map(s => ({
+        name: s.name, prize: s.prize, token: '', at: ref - s.agoMin * 60000, own: false,
+      }));
+      return own.concat(seeded).slice(0, MAX_WINNER_ROWS);
+    },
+  };
+}
+
+function renderWinnerRows(tbody, rows) {
+  tbody.textContent = '';
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    if (r.own) tr.className = 'own';
+
+    const who = document.createElement('td');
+    who.textContent = r.name;
+    if (r.token) {
+      const tok = document.createElement('span');
+      tok.className = 'tok';
+      tok.textContent = r.token;
+      who.append(tok);
+    }
+
+    const prize = document.createElement('td');
+    prize.className = 'prize';
+    prize.textContent = r.prize;
+
+    const when = document.createElement('td');
+    when.className = 'when';
+    when.textContent = relativeTime(r.at);
+
+    tr.append(who, prize, when);
+    tbody.append(tr);
+  }
+}
+
+/* Daftar hadiah digambar dari PRIZES, bukan ditulis ulang di markup —
+   supaya tidak pernah bisa melenceng dari isi roda.
+
+   Urutannya SENGAJA beda dari roda: roda diacak supaya tidak terlihat
+   dekoratif, tapi daftar hadiah diurutkan dari nilai terbesar karena
+   daftar berurutan acak terbaca sembarangan. */
+function prizesByValue() {
+  return PRIZES.slice().sort((a, b) => b.value - a.value);
+}
+
+function renderPrizeList(el) {
+  el.textContent = '';
+  for (const p of prizesByValue()) {
+    const li = document.createElement('li');
+    if (p.id === 'zonk') li.className = 'zonk';
+    li.textContent = p.label;
+    el.append(li);
+  }
 }
 
 /* ═══════════════ BOOT ═══════════════
@@ -536,6 +678,7 @@ function startApp() {
     usedTokens,
     tokenService: createTokenService({ tokens: DUMMY_TOKENS, usedTokens }),
     sound: createSound(safeStorage()),
+    winners: createWinnerStore(safeStorage()),
   }).start();
 }
 

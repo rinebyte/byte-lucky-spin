@@ -247,6 +247,59 @@ def _(page, base):
     assert baris == 1, f"tagline pecah jadi {baris} baris di 320px"
 
 
+@flow("daftar hadiah digambar dari PRIZES, bukan ditulis ulang di markup")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    labels = page.eval_on_selector_all("#prize-list li", "els => els.map(e => e.textContent)")
+    expected = page.evaluate("PRIZES.slice().sort((a,b) => b.value - a.value).map(p => p.label)")
+    assert labels == expected, f"daftar hadiah melenceng dari PRIZES: {labels}"
+    assert labels[0] == "Rp 1.000.000", f"hadiah terbesar harus di atas, dapatnya {labels[0]}"
+    assert labels[-1] == "Zonk", f"Zonk harus paling bawah, dapatnya {labels[-1]}"
+    zonk = page.eval_on_selector_all("#prize-list li.zonk", "els => els.length")
+    assert zonk == 1, f"ZONK harus ditandai tepat sekali, dapatnya {zonk}"
+
+
+@flow("tabel pemenang sudah terisi seed saat halaman dibuka")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    rows = page.eval_on_selector_all("#winner-body tr", "els => els.length")
+    assert rows >= 6, f"tabel harusnya terisi seed, dapatnya {rows} baris"
+    own = page.eval_on_selector_all("#winner-body tr.own", "els => els.length")
+    assert own == 0, "belum ada kemenangan tapi sudah ada baris bertanda Kamu"
+
+
+@flow("kemenangan user muncul di baris teratas dan bertahan setelah reload")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    page.fill("#token-input", "JACKPOT")
+    page.click("#validate-btn")
+    page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
+    page.click("#spin-btn")
+    page.wait_for_selector("#result-modal[data-open='true']", timeout=15000)
+
+    first = page.eval_on_selector("#winner-body tr:first-child", "e => e.className + '|' + e.textContent")
+    assert "own" in first and "Kamu" in first, f"baris teratas bukan milik user: {first}"
+    assert "1.000.000" in first, first
+
+    page.reload()
+    first = page.eval_on_selector("#winner-body tr:first-child", "e => e.className + '|' + e.textContent")
+    assert "own" in first and "1.000.000" in first, f"kemenangan hilang setelah reload: {first}"
+
+
+@flow("ZONK tidak pernah masuk tabel pemenang")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    page.fill("#token-input", "APESBGT")
+    page.click("#validate-btn")
+    page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
+    page.click("#spin-btn")
+    page.wait_for_selector("#result-modal[data-open='true']", timeout=15000)
+    own = page.eval_on_selector_all("#winner-body tr.own", "els => els.length")
+    assert own == 0, "ZONK tidak boleh tercatat sebagai kemenangan"
+    body = page.inner_text("#winner-body")
+    assert "Zonk" not in body, f"kata Zonk bocor ke tabel pemenang: {body}"
+
+
 def run_flow_tests(browser, base):
     results = []
     for name, fn in FLOW_TESTS:

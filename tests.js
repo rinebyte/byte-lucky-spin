@@ -264,4 +264,71 @@ test('bunyi tidak melempar error saat AudioContext gagal dibuat', () => {
   s.unlock(); s.tick(); s.win(); s.lose();
 });
 
+
+/* ═══════════════ TES: PEMENANG ═══════════════ */
+
+test('maskToken menyamarkan bagian tengah token', () => {
+  assertEq(maskToken('LUCKY100'), 'LUC•••00');
+  assertEq(maskToken('JACKPOT'), 'JAC•••OT');
+  assertEq(maskToken('ABC'), 'ABC', 'token pendek dibiarkan apa adanya');
+  assertEq(maskToken(''), '');
+});
+
+test('relativeTime memakai satuan yang masuk akal', () => {
+  const now = 1000000000000;
+  const menit = 60000, jam = 60 * menit, hari = 24 * jam;
+  assertEq(relativeTime(now, now), 'baru saja');
+  assertEq(relativeTime(now - 30000, now), 'baru saja');
+  assertEq(relativeTime(now - 5 * menit, now), '5 menit lalu');
+  assertEq(relativeTime(now - 2 * jam, now), '2 jam lalu');
+  assertEq(relativeTime(now - hari, now), 'kemarin');
+  assertEq(relativeTime(now - 3 * hari, now), '3 hari lalu');
+});
+
+test('tabel pemenang terisi seed saat belum ada kemenangan', () => {
+  const store = createWinnerStore(memoryStorage(), 'tes.winners');
+  const rows = store.list();
+  assert(rows.length >= 5, `harusnya ada beberapa seed, dapatnya ${rows.length}`);
+  assert(rows.every(r => !r.own), 'belum ada kemenangan user, tapi ada baris bertanda own');
+});
+
+test('kemenangan user nempel di baris teratas dan ditandai own', () => {
+  const store = createWinnerStore(memoryStorage(), 'tes.winners');
+  store.add('Rp 100.000', 'LUCKY100');
+  const rows = store.list();
+  assertEq(rows[0].own, true);
+  assertEq(rows[0].prize, 'Rp 100.000');
+  assertEq(rows[0].name, 'Kamu');
+  assertEq(rows[0].token, 'LUC•••00', 'token harus tersimpan dalam bentuk tersamar');
+});
+
+test('kemenangan terbaru selalu di atas kemenangan lama', () => {
+  const store = createWinnerStore(memoryStorage(), 'tes.winners');
+  store.add('Rp 25.000', 'LUCKY25');
+  store.add('Rp 500.000', 'LUCKY500');
+  const rows = store.list();
+  assertEq(rows[0].prize, 'Rp 500.000');
+  assertEq(rows[1].prize, 'Rp 25.000');
+});
+
+test('tabel tidak pernah lebih dari MAX_WINNER_ROWS baris', () => {
+  const store = createWinnerStore(memoryStorage(), 'tes.winners');
+  for (let i = 0; i < 20; i++) store.add('Rp 10.000', 'LUCKY10');
+  assertEq(store.list().length, MAX_WINNER_ROWS);
+});
+
+test('kemenangan bertahan lintas instance', () => {
+  const shared = memoryStorage();
+  createWinnerStore(shared, 'tes.winners').add('Rp 1.000.000', 'JACKPOT');
+  const rows = createWinnerStore(shared, 'tes.winners').list();
+  assertEq(rows[0].prize, 'Rp 1.000.000');
+  assertEq(rows[0].own, true);
+});
+
+test('WinnerStore tetap jalan saat storage diblokir', () => {
+  const store = createWinnerStore(brokenStorage(), 'tes.winners');
+  store.add('Rp 50.000', 'LUCKY50');
+  assertEq(store.list()[0].prize, 'Rp 50.000');
+});
+
 runTests();

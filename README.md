@@ -6,7 +6,17 @@ lalu roda berputar dan berhenti tepat di hadiah itu.
 ## Cara pakai
 
 Buka `index.html` di browser. Tidak perlu build, tidak perlu install apa pun.
-Bawa serta folder `sounds/` — di situ suara menangnya.
+
+Yang harus dibawa bareng: `index.html`, `styles.css`, `app.js`, dan folder `sounds/`.
+(`tests.js` hanya dipakai saat pengembangan.)
+
+| Berkas | Isi |
+|---|---|
+| `index.html` | Markup |
+| `styles.css` | Gaya |
+| `app.js` | Semua logika |
+| `tests.js` | Tes — hanya diunduh saat `?test=1` |
+| `sounds/win.mp3` | Suara menang |
 
 ## Suara
 
@@ -48,7 +58,7 @@ localStorage.removeItem('luckyspin.used')
 
 ## Mengubah hadiah atau token
 
-Semuanya ada di `index.html`. Cari `const PRIZES` untuk daftar hadiah dan
+Semuanya ada di `app.js`. Cari `const PRIZES` untuk daftar hadiah dan
 `const DUMMY_TOKENS` untuk pemetaan token → hadiah. Urutan `PRIZES` adalah urutan
 searah jarum jam di roda, dan sengaja tidak diurutkan dari nilai kecil ke besar —
 kalau urut, user langsung sadar rodanya cuma dekoratif.

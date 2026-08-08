@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Masukkan token, putar roda, dan menangkan hadiahmu.">
-<meta name="theme-color" content="#08080B">
+<meta name="theme-color" content="#0E0E16">
 <title>Lucky Spin</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,6 +42,30 @@
     </form>
     <p id="error" role="alert"></p>
     <p id="status" aria-live="polite"></p>
+  </section>
+
+  <section class="card" id="how-to">
+    <h2>Cara Main</h2>
+    <ol class="steps">
+      <li><span class="step-n">1</span><span class="step-t"><b>Masukkan token</b>Ketik kode token yang kamu punya, lalu tekan Validasi.</span></li>
+      <li><span class="step-n">2</span><span class="step-t"><b>Putar rodanya</b>Tombol SPIN di tengah roda akan menyala. Tekan sekali.</span></li>
+      <li><span class="step-n">3</span><span class="step-t"><b>Ambil hadiahmu</b>Roda berhenti dan hadiahmu langsung muncul. Satu token sekali pakai.</span></li>
+    </ol>
+  </section>
+
+  <section class="card" id="prizes">
+    <h2>Daftar Hadiah</h2>
+    <ul class="prize-list" id="prize-list"></ul>
+  </section>
+
+  <section class="card" id="winners">
+    <h2>Pemenang Terbaru</h2>
+    <table class="winner-table">
+      <thead>
+        <tr><th>Pemain</th><th>Hadiah</th><th>Waktu</th></tr>
+      </thead>
+      <tbody id="winner-body"></tbody>
+    </table>
   </section>
 </main>
 

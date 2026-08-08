@@ -1,13 +1,13 @@
 :root {
-  --bg:      #08080B;
-  --panel:   #101016;
+  --bg:      #0E0E16;   /* charcoal kebiruan, bukan hitam pekat */
+  --panel:   #16161F;
   --gold:    #D4AF37;
   --gold-hi: #F7E7A8;
   --gold-lo: #7A5F17;
   --label:   #F0E2B6;
-  --muted:   #7C7C86;
+  --muted:   #8E8E9C;
   --error:   #C6413C;
-  --hairline: rgba(212, 175, 55, .25);
+  --hairline: rgba(212, 175, 55, .32);
   --head-gutter: 46px;   /* ruang aman buat tombol mute yang melayang */
   --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
@@ -18,15 +18,36 @@
 body {
   margin: 0;
   min-height: 100dvh;
-  background: var(--bg);
-  background-image: radial-gradient(circle at 50% 32%, rgba(212,175,55,.10), transparent 62%);
   color: var(--label);
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
+
+  /* Kisi berlian art-deco, dibangun dari dua gradien bersilang — nol byte
+     gambar dan tetap tajam di layar retina berapa pun. Opacity sengaja
+     rendah: pattern latar yang kentara akan berkelahi dengan teks. */
+  background-color: var(--bg);
+  background-image:
+    repeating-linear-gradient( 45deg, transparent 0 22px, rgba(212,175,55,.05) 22px 23px),
+    repeating-linear-gradient(-45deg, transparent 0 22px, rgba(212,175,55,.05) 22px 23px);
+}
+
+/* Dua lapis cahaya ambient. Kegelapan berlapis terbaca "mewah";
+   kegelapan rata terbaca "suram". Dipasang fixed supaya tidak melar
+   mengikuti tinggi halaman saat section bertambah. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(ellipse 92% 52% at 50% 14%, rgba(212,175,55,.15), transparent 70%),
+    radial-gradient(ellipse 80% 46% at 50% 100%, rgba(96,88,196,.13), transparent 72%);
 }
 
 .shell {
   position: relative;
+  z-index: 1;          /* di atas cahaya ambient body::before */
   max-width: 480px;
   margin: 0 auto;
   padding: 28px 20px calc(32px + env(safe-area-inset-bottom));
@@ -250,6 +271,106 @@ body {
 #result-modal[data-lose='true'] .modal-card h2,
 #result-modal[data-lose='true'] #result-text { color: var(--muted); }
 #result-modal[data-lose='true'] .modal-card { border-color: var(--hairline); }
+
+/* ── kartu section (Cara Main, Daftar Hadiah, Pemenang) ── */
+.card {
+  margin-top: 18px;
+  padding: 20px;
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+}
+.card h2 {
+  margin: 0 0 16px;
+  font-family: var(--serif);
+  font-size: 16px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* ── Cara Main ── */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 15px; }
+.steps li { display: flex; gap: 13px; align-items: flex-start; }
+.step-n {
+  flex: none;
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  color: var(--gold);
+  font-family: var(--serif);
+  font-size: 13px;
+}
+.step-t { font-size: 13px; line-height: 1.55; color: var(--muted); }
+.step-t b {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--label);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ── Daftar Hadiah ── */
+.prize-list {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.prize-list li {
+  padding: 11px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 9px;
+  background: rgba(212,175,55,.05);
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--label);
+  text-align: center;
+}
+.prize-list li.zonk {
+  color: var(--muted);
+  background: transparent;
+  border-color: rgba(142,142,156,.22);
+}
+
+/* ── Pemenang Terbaru ── */
+.winner-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.winner-table th {
+  padding: 0 0 9px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--hairline);
+}
+.winner-table th:last-child { text-align: right; }
+.winner-table td {
+  padding: 10px 0;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+.winner-table tr:last-child td { border-bottom: 0; }
+.winner-table .prize {
+  font-family: var(--serif);
+  color: var(--gold-hi);
+  white-space: nowrap;
+}
+.winner-table .when {
+  text-align: right;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+.winner-table .tok {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.winner-table tr.own td { background: rgba(212,175,55,.07); }
+.winner-table tr.own td:first-child { color: var(--gold); font-weight: 600; }
 
 /* ── overlay tes ── */
 #test-overlay {
