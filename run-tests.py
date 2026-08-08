@@ -145,6 +145,14 @@ COUNT_OSCILLATORS = """() => {
   const proto = (window.AudioContext || window.webkitAudioContext).prototype;
   const orig = proto.createOscillator;
   proto.createOscillator = function () { window.__osc++; return orig.call(this); };
+
+  // Suara menang datang dari file, bukan oscillator — dicatat terpisah.
+  window.__played = [];
+  const play = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function () {
+    window.__played.push(this.currentSrc || this.src);
+    return play.call(this);
+  };
 }"""
 
 
@@ -159,7 +167,9 @@ def _(page, base):
     page.wait_for_selector("#result-modal[data-open='true']", timeout=15000)
     page.wait_for_timeout(600)          # beri waktu arpeggio penutup selesai
     loud = page.evaluate("window.__osc")
-    assert loud >= 3, f"harusnya ada tik + nada penutup, dapatnya {loud} oscillator"
+    assert loud >= 3, f"harusnya ada tik selama berputar, dapatnya {loud} oscillator"
+    played = page.evaluate("window.__played")
+    assert any("win.mp3" in s for s in played), f"suara menang harus dari file, terputar: {played}"
 
     # Modal menutupi tombol mute selama masih terbuka — itu memang tugas modal.
     page.click("#close-result")
@@ -167,7 +177,7 @@ def _(page, base):
     # (default Playwright) akan selalu timeout.
     page.wait_for_selector("#result-modal[data-open='false']", state="hidden", timeout=5000)
     page.click("#mute-btn")
-    page.evaluate("window.__osc = 0")
+    page.evaluate("window.__osc = 0; window.__played = [];")
     page.fill("#token-input", "LUCKY25")
     page.click("#validate-btn")
     page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
@@ -176,6 +186,8 @@ def _(page, base):
     page.wait_for_timeout(600)
     quiet = page.evaluate("window.__osc")
     assert quiet == 0, f"saat mute harusnya nol bunyi, dapatnya {quiet}"
+    diam = page.evaluate("window.__played")
+    assert diam == [], f"saat mute file audio tidak boleh diputar, terputar: {diam}"
 
 
 @flow("tidak ada source code yang bocor kerender ke halaman")

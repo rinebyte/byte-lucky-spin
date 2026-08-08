@@ -632,12 +632,23 @@ function createWheel(svgEl, { durationMs = 5200, turns = TURNS } = {}) {
    yang jalan sebelum ada interaksi user. */
 
 const MUTED_KEY = 'luckyspin.muted';
+const WIN_SOUND_URL = 'sounds/win.mp3';
 
 function createSound(storage, makeContext) {
   const factory = makeContext || (() => new (window.AudioContext || window.webkitAudioContext)());
   let ctx = null;
   let broken = false;
   let muted = false;
+
+  // Suara menang pakai rekaman asli; tik dan zonk tetap dibangkitkan WebAudio
+  // supaya tik bisa terikat ke posisi roda.
+  let winAudio = null;
+  try {
+    winAudio = new Audio(WIN_SOUND_URL);
+    winAudio.preload = 'auto';
+  } catch (e) {
+    winAudio = null;
+  }
 
   try {
     muted = storage.getItem(MUTED_KEY) === 'true';
@@ -684,7 +695,16 @@ function createSound(storage, makeContext) {
     // Sedikit variasi frekuensi supaya tiap tik tidak terdengar identik.
     tick() { beep(1050 + Math.random() * 110, 0.03, 'triangle', 0.09); },
     win() {
-      [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.16, 'sine', 0.13), i * 95));
+      if (muted || !winAudio) return;
+      try {
+        winAudio.currentTime = 0;
+        const p = winAudio.play();
+        // play() ditolak kalau browser memblokir autoplay. Ditelan supaya
+        // tidak jadi unhandled rejection yang bikin halaman terlihat error.
+        if (p && p.catch) p.catch(() => {});
+      } catch (e) {
+        /* biarkan senyap; spin tetap jalan normal */
+      }
     },
     lose() { beep(150, 0.42, 'sine', 0.11); },
     setMuted(v) {

@@ -301,7 +301,12 @@ Tik: oscillator triangle ~1100Hz dengan envelope gain turun cepat (~30ms). Tidak
 audio. Karena tik terikat ke **posisi** roda dan bukan ke waktu, tiknya melambat sendiri
 seiring roda melambat — itu yang membuat telinga percaya roda melambat karena gesekan.
 
-Nada penutup: arpeggio naik pendek saat menang, satu nada rendah saat ZONK.
+Nada penutup: satu nada rendah saat ZONK, tetap dibangkitkan WebAudio.
+
+Suara menang memakai rekaman asli `sounds/win.mp3` (mixkit-bonus-collect-award, 1,8
+detik). Ini satu-satunya aset audio, dan konsekuensinya aplikasi tidak lagi benar-benar
+satu file — folder `sounds/` harus ikut dibawa. Tik sengaja TIDAK diganti rekaman
+karena keterikatannya ke posisi roda itulah yang memberi rasa melambat.
 
 Tombol kecil di pojok kanan atas, pilihannya disimpan di localStorage key
 `luckyspin.muted`. Default nyala.

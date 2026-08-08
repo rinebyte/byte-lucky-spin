@@ -6,6 +6,23 @@ lalu roda berputar dan berhenti tepat di hadiah itu.
 ## Cara pakai
 
 Buka `index.html` di browser. Tidak perlu build, tidak perlu install apa pun.
+Bawa serta folder `sounds/` — di situ suara menangnya.
+
+## Suara
+
+| Kejadian | Sumber |
+|---|---|
+| Tik saat segmen lewat jarum | Dibangkitkan WebAudio, tanpa file |
+| Menang | `sounds/win.mp3` |
+| Zonk | Dibangkitkan WebAudio, tanpa file |
+
+Tik sengaja tetap dibangkitkan dan bukan rekaman: bunyinya terikat ke **posisi**
+roda, bukan ke waktu, jadi tiknya melambat sendiri seiring roda melambat. Itu yang
+bikin telinga percaya roda melambat karena gesekan.
+
+Untuk mengganti suara menang, timpa `sounds/win.mp3` (atau ubah `WIN_SOUND_URL`
+di `index.html`). Tombol speaker di pojok kanan atas membisukan semuanya, dan
+pilihannya diingat.
 
 ## Token dummy
 
