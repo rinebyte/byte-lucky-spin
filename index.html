@@ -2,6 +2,8 @@
 <html lang="id">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Masukkan token, putar roda, dan menangkan hadiahmu.">
+<meta name="theme-color" content="#08080B">
 <title>Lucky Spin</title>
 
 <style>
@@ -15,6 +17,7 @@
   --muted:   #7C7C86;
   --error:   #C6413C;
   --hairline: rgba(212, 175, 55, .25);
+  --head-gutter: 46px;   /* ruang aman buat tombol mute yang melayang */
   --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
 }
@@ -64,10 +67,13 @@ body {
 #mute-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 /* ── kepala ── */
-.head { text-align: center; margin-bottom: 22px; }
+/* padding-inline menyisakan ruang buat tombol mute yang melayang di kanan
+   atas, supaya judul tidak pernah menyelinap ke belakangnya di layar sempit. */
+.head { text-align: center; margin-bottom: 22px; padding-inline: var(--head-gutter); }
 .head h1 {
+  display: inline-block;
   font-family: var(--serif);
-  font-size: clamp(30px, 9vw, 42px);
+  font-size: clamp(24px, 8vw, 42px);
   letter-spacing: .10em;
   margin: 0;
   background: linear-gradient(180deg, var(--gold-hi), var(--gold) 55%, var(--gold-lo));
@@ -76,7 +82,9 @@ body {
   color: transparent;
 }
 .tagline {
-  margin: 6px 0 0;
+  /* Tagline ada di bawah tombol mute, jadi tidak perlu ruang aman itu —
+     margin negatif mengembalikan lebar penuhnya supaya tetap satu baris. */
+  margin: 6px calc(var(--head-gutter) * -1) 0;
   font-size: 12px;
   letter-spacing: .22em;
   text-transform: uppercase;
@@ -262,6 +270,12 @@ body {
 #test-overlay .ok  { color: #4FBF7B; }
 #test-overlay .bad { color: #E0524C; }
 #test-overlay small { color: #E0A0A0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hub:not([disabled]) { animation: none; }
+  .shake { animation: none; }
+  .rotor { transition-duration: 900ms !important; }
+}
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -306,8 +320,8 @@ body {
      aria-labelledby="result-title">
   <div class="modal-card">
     <h2 id="result-title">SELAMAT!</h2>
-    <p class="modal-sub">Kamu mendapatkan</p>
-    <p id="result-text">—</p>
+    <p class="modal-sub" id="result-sub">Kamu mendapatkan</p>
+    <p id="result-text">&mdash;</p>
     <button id="close-result" type="button" class="cta">SELESAI</button>
   </div>
 </div>
@@ -711,6 +725,7 @@ function createApp({ wheel, tokenService, usedTokens, sound }) {
   const modal    = document.getElementById('result-modal');
   const resultEl = document.getElementById('result-text');
   const titleEl  = document.getElementById('result-title');
+  const subEl    = document.getElementById('result-sub');
   const closeBtn = document.getElementById('close-result');
   const panel    = document.querySelector('.panel');
   const muteBtn  = document.getElementById('mute-btn');
@@ -739,10 +754,10 @@ function createApp({ wheel, tokenService, usedTokens, sound }) {
     input.disabled = busy || next === 'READY';
     validate.disabled = busy || next === 'READY';
     spinBtn.disabled = next !== 'READY';
-    validate.textContent = next === 'VALIDATING' ? 'MEMPROSES…' : 'VALIDASI TOKEN';
+    validate.textContent = next === 'VALIDATING' ? 'MEMPROSES\u2026' : 'VALIDASI TOKEN';
     statusEl.textContent =
-      next === 'READY'   ? '✓ Token valid — tekan SPIN' :
-      next === 'SPINNING' ? 'Memutar…' : '';
+      next === 'READY'   ? '\u2713 Token valid \u2014 tekan SPIN' :
+      next === 'SPINNING' ? 'Memutar\u2026' : '';
   }
 
   function showError(reason) {
@@ -788,6 +803,8 @@ function createApp({ wheel, tokenService, usedTokens, sound }) {
 
     modal.dataset.lose = String(lose);
     titleEl.textContent = lose ? 'BELUM BERUNTUNG' : 'SELAMAT!';
+    // "Kamu mendapatkan Zonk" bertabrakan dengan "Belum beruntung".
+    subEl.textContent = lose ? 'Hasil putaran' : 'Kamu mendapatkan';
     resultEl.textContent = lose ? 'Zonk' : prize.label;
     modal.dataset.open = 'true';
     closeBtn.focus();
@@ -856,7 +873,7 @@ function renderTestOverlay(results, failed) {
   const box = document.createElement('div');
   box.id = 'test-overlay';
   const rows = results.map(r =>
-    `<div class="${r.ok ? 'ok' : 'bad'}">${r.ok ? '✓' : '✗'} ${r.name}` +
+    `<div class="${r.ok ? 'ok' : 'bad'}">${r.ok ? '\u2713' : '\u2717'} ${r.name}` +
     (r.ok ? '' : `<br><small>${r.err}</small>`) + `</div>`
   ).join('');
   box.innerHTML =
@@ -867,7 +884,7 @@ function renderTestOverlay(results, failed) {
 
 <script>
 /* ═══════════════ TES: MATEMATIKA PUTARAN ═══════════════ */
-test('sudut berhenti selalu mendarat di segmen target (8 hadiah × 200 acak)', () => {
+test('sudut berhenti selalu mendarat di segmen target (8 hadiah \u00D7 200 acak)', () => {
   for (let i = 0; i < PRIZES.length; i++) {
     for (let k = 0; k < 200; k++) {
       const current = Math.random() * 10000;
@@ -893,14 +910,14 @@ test('sudut berhenti tidak pernah lebih dekat dari MARGIN ke garis pembatas', ()
       const r = targetRotation(Math.random() * 10000, i);
       const local = (((-r % 360) + 360) % 360) % SEG;
       assert(local >= MARGIN && SEG - local >= MARGIN,
-        `jarak ke pembatas cuma ${Math.min(local, SEG - local).toFixed(2)}°`);
+        `jarak ke pembatas cuma ${Math.min(local, SEG - local).toFixed(2)}\u00B0`);
     }
   }
 });
 
 test('jumlah putaran bisa dikurangi lewat parameter turns', () => {
   const r = targetRotation(0, 3, 1);
-  assert(r >= 360 && r < 720, `dengan turns=1 harusnya 360–720, dapatnya ${r}`);
+  assert(r >= 360 && r < 720, `dengan turns=1 harusnya 360\u2013720, dapatnya ${r}`);
   assertEq(segmentAtPointer(r), 3);
 });
 </script>
@@ -1038,7 +1055,7 @@ test('label di paruh bawah dibalik supaya tidak terbaca terbalik', () => {
     const center = i * SEG + SEG / 2;
     const flipped = (t.getAttribute('transform') || '').includes('rotate(180');
     assertEq(flipped, center > 90 && center < 270,
-      `segmen ${i} di ${center}° salah orientasi`);
+      `segmen ${i} di ${center}\u00B0 salah orientasi`);
   });
 });
 

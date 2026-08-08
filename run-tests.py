@@ -190,6 +190,51 @@ def _(page, base):
     assert stray == 0, f"ada {stray} <svg> liar langsung di body — tanda script terpotong"
 
 
+@flow("modal hasil bisa ditutup pakai Escape dan fokus pindah ke tombolnya")
+def _(page, base):
+    page.goto(f"{base}/index.html")
+    page.fill("#token-input", "LUCKY25")
+    page.click("#validate-btn")
+    page.wait_for_selector("#spin-btn:not([disabled])", timeout=10000)
+    page.click("#spin-btn")
+    page.wait_for_selector("#result-modal[data-open='true']", timeout=15000)
+    assert page.evaluate("document.activeElement.id") == "close-result"
+    page.keyboard.press("Escape")
+    page.wait_for_selector("#result-modal[data-open='false']", state="hidden", timeout=5000)
+    assert page.input_value("#token-input") == "", "input harus dikosongkan setelah selesai"
+
+
+@flow("halaman punya deskripsi dan tidak scroll horizontal di layar HP")
+def _(page, base):
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{base}/index.html")
+    assert page.get_attribute("html", "lang") == "id"
+    desc = page.get_attribute("meta[name='description']", "content")
+    assert desc and len(desc) > 20, f"meta description belum memadai: {desc!r}"
+    overflow = page.evaluate(
+        "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
+    )
+    assert overflow <= 0, f"halaman melebar {overflow}px di viewport 390"
+
+
+@flow("tombol mute tidak menabrak judul di layar sempit")
+def _(page, base):
+    page.set_viewport_size({"width": 320, "height": 568})
+    page.goto(f"{base}/index.html")
+    h1 = page.locator(".head h1").bounding_box()
+    btn = page.locator("#mute-btn").bounding_box()
+    dx = min(h1["x"] + h1["width"], btn["x"] + btn["width"]) - max(h1["x"], btn["x"])
+    dy = min(h1["y"] + h1["height"], btn["y"] + btn["height"]) - max(h1["y"], btn["y"])
+    assert dx <= 0 or dy <= 0, f"judul dan tombol mute tumpang tindih {dx:.0f}x{dy:.0f}px"
+
+    baris = page.evaluate("""() => {
+      const e = document.querySelector('.tagline');
+      const r = document.createRange(); r.selectNodeContents(e);
+      return r.getClientRects().length;
+    }""")
+    assert baris == 1, f"tagline pecah jadi {baris} baris di 320px"
+
+
 def run_flow_tests(browser, base):
     results = []
     for name, fn in FLOW_TESTS:
