@@ -153,6 +153,153 @@ function createTokenService({ tokens, usedTokens, delayMs = 700 }) {
 </script>
 
 <script>
+/* ═══════════════ RODA ═══════════════ */
+
+const prizeIndexById = (prizeId) => PRIZES.findIndex(p => p.id === prizeId);
+
+function createWheel(svgEl, { durationMs = 5200, turns = TURNS } = {}) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const CX = 200, CY = 200, R = 180, LABEL_R = 118;
+
+  let rotation = 0;
+  let rotor = null;
+
+  const el = (name, attrs) => {
+    const node = document.createElementNS(NS, name);
+    for (const k in attrs) node.setAttribute(k, attrs[k]);
+    return node;
+  };
+
+  // 0° = jam 12, searah jarum jam.
+  const pointAt = (deg, radius) => {
+    const a = (deg - 90) * Math.PI / 180;
+    return [CX + radius * Math.cos(a), CY + radius * Math.sin(a)];
+  };
+
+  function wedge(startDeg, endDeg) {
+    const [x1, y1] = pointAt(startDeg, R);
+    const [x2, y2] = pointAt(endDeg, R);
+    const large = endDeg - startDeg > 180 ? 1 : 0;
+    return `M ${CX} ${CY} L ${x1.toFixed(2)} ${y1.toFixed(2)} ` +
+           `A ${R} ${R} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+  }
+
+  function render() {
+    svgEl.textContent = '';   // render ulang dari nol, tidak menumpuk
+
+    const defs = el('defs');
+    const grad = el('linearGradient', { id: 'goldRim', x1: '0', y1: '0', x2: '0', y2: '1' });
+    grad.append(
+      el('stop', { offset: '0',   'stop-color': '#F7E7A8' }),
+      el('stop', { offset: '0.5', 'stop-color': '#D4AF37' }),
+      el('stop', { offset: '1',   'stop-color': '#7A5F17' }),
+    );
+    defs.append(grad);
+    svgEl.append(defs);
+
+    rotor = el('g', { class: 'rotor' });
+
+    PRIZES.forEach((prize, i) => {
+      rotor.append(el('path', {
+        class: 'seg',
+        d: wedge(i * SEG, (i + 1) * SEG),
+        fill: i % 2 === 0 ? '#14141B' : '#1E1608',
+        stroke: 'rgba(212,175,55,.35)',
+        'stroke-width': '1',
+      }));
+    });
+
+    PRIZES.forEach((prize, i) => {
+      const g = el('g', { transform: `rotate(${i * SEG + SEG / 2} ${CX} ${CY})` });
+      const t = el('text', {
+        class: prize.id === 'zonk' ? 'seg-label zonk' : 'seg-label',
+        x: CX, y: CY - LABEL_R,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'middle',
+      });
+      t.textContent = prize.short;
+      g.append(t);
+      rotor.append(g);
+    });
+
+    svgEl.append(rotor);
+    svgEl.append(el('circle', {
+      class: 'rim', cx: CX, cy: CY, r: R + 8,
+      fill: 'none', stroke: 'url(#goldRim)', 'stroke-width': '9',
+    }));
+
+    rotor.style.transformBox = 'view-box';
+    rotor.style.transformOrigin = `${CX}px ${CY}px`;
+    rotor.style.transform = `rotate(${rotation}deg)`;
+  }
+
+  // Sudut roda saat ini, dibaca dari matriks transform hasil animasi CSS.
+  function liveAngle() {
+    const tr = getComputedStyle(rotor).transform;
+    if (!tr || tr === 'none') return 0;
+    try {
+      const m = new DOMMatrixReadOnly(tr);
+      return Math.atan2(m.b, m.a) * 180 / Math.PI;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function spinTo(index, { onTick } = {}) {
+    const to = targetRotation(rotation, index, turns);
+    rotation = to;
+
+    return new Promise((resolve) => {
+      let done = false;
+      let rafId = 0;
+      let lastSlot = Math.floor(liveAngle() / SEG);
+
+      function finish() {
+        if (done) return;
+        done = true;
+        cancelAnimationFrame(rafId);
+        clearTimeout(timer);
+        rotor.removeEventListener('transitionend', onEnd);
+        resolve();
+      }
+
+      function onEnd(e) {
+        if (e.propertyName === 'transform') finish();
+      }
+
+      // Jaring pengaman: transitionend tidak jalan kalau user pindah tab di
+      // tengah putaran. Tanpa ini aplikasi nyangkut di SPINNING selamanya.
+      const timer = setTimeout(finish, durationMs + 300);
+      rotor.addEventListener('transitionend', onEnd);
+
+      // Tik terikat ke POSISI roda, bukan ke waktu — jadi tiknya melambat
+      // sendiri seiring roda melambat.
+      function loop() {
+        if (done) return;
+        const slot = Math.floor(liveAngle() / SEG);
+        if (slot !== lastSlot) {
+          lastSlot = slot;
+          if (onTick) onTick();
+        }
+        rafId = requestAnimationFrame(loop);
+      }
+
+      rotor.style.transition = `transform ${durationMs}ms cubic-bezier(0.12, 0.72, 0.08, 1)`;
+      void rotor.getBoundingClientRect();   // paksa reflow supaya transisi jalan
+      rotor.style.transform = `rotate(${to}deg)`;
+      rafId = requestAnimationFrame(loop);
+    });
+  }
+
+  return {
+    render,
+    spinTo,
+    get rotation() { return rotation; },
+  };
+}
+</script>
+
+<script>
 /* ═══════════════ HARNESS TES ═══════════════ */
 const TESTS = [];
 const test = (name, fn) => TESTS.push({ name, fn });
@@ -317,6 +464,76 @@ test('setiap hadiah punya satu token dummy', () => {
   for (const prize of PRIZES) {
     assert(ids.includes(prize.id), `tidak ada token dummy untuk ${prize.id}`);
   }
+});
+</script>
+
+<script>
+/* ═══════════════ TES: RODA ═══════════════ */
+
+// Roda uji dipasang di dokumen (bukan detached) supaya transisi CSS
+// benar-benar jalan, tapi tidak kelihatan dan tidak bisa diklik.
+function makeTestWheel(opts) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 400 400');
+  svg.style.cssText =
+    'position:fixed;top:0;left:0;width:200px;height:200px;opacity:0;pointer-events:none';
+  document.body.appendChild(svg);
+  const wheel = createWheel(svg, opts);
+  wheel.render();
+  return { svg, wheel };
+}
+
+test('prizeIndexById memetakan id hadiah ke posisinya di roda', () => {
+  assertEq(prizeIndexById('p10'), 0);
+  assertEq(prizeIndexById('p100'), 7);
+  assertEq(prizeIndexById('ngaco'), -1);
+});
+
+test('roda menggambar satu segmen per hadiah', () => {
+  const { svg } = makeTestWheel();
+  assertEq(svg.querySelectorAll('path.seg').length, PRIZES.length);
+});
+
+test('label segmen sesuai urutan PRIZES', () => {
+  const { svg } = makeTestWheel();
+  const labels = [...svg.querySelectorAll('text.seg-label')].map(t => t.textContent);
+  assertEq(labels.join('|'), PRIZES.map(p => p.short).join('|'));
+});
+
+test('label ZONK ditandai beda supaya bisa diredupkan', () => {
+  const { svg } = makeTestWheel();
+  const zonk = [...svg.querySelectorAll('text.seg-label')]
+    .find(t => t.textContent === 'ZONK');
+  assert(zonk && zonk.classList.contains('zonk'), 'label ZONK harus punya class zonk');
+});
+
+test('render dua kali tidak menggandakan isi roda', () => {
+  const { svg, wheel } = makeTestWheel();
+  wheel.render();
+  assertEq(svg.querySelectorAll('path.seg').length, PRIZES.length);
+});
+
+test('spinTo berhenti tepat di segmen yang diminta', async () => {
+  const { wheel } = makeTestWheel({ durationMs: 60, turns: 1 });
+  for (const index of [0, 3, 7]) {
+    await wheel.spinTo(index);
+    assertEq(segmentAtPointer(wheel.rotation), index, `spinTo(${index})`);
+  }
+});
+
+test('spin berikutnya selalu maju, tidak pernah mundur', async () => {
+  const { wheel } = makeTestWheel({ durationMs: 60, turns: 1 });
+  await wheel.spinTo(2);
+  const first = wheel.rotation;
+  await wheel.spinTo(5);
+  assert(wheel.rotation > first, `rotasi harus naik dari ${first}, dapatnya ${wheel.rotation}`);
+});
+
+test('spinTo memicu onTick beberapa kali selama berputar', async () => {
+  const { wheel } = makeTestWheel({ durationMs: 400, turns: 1 });
+  let ticks = 0;
+  await wheel.spinTo(4, { onTick: () => { ticks++; } });
+  assert(ticks >= 3, `harusnya ada beberapa tik selama satu putaran, dapatnya ${ticks}`);
 });
 </script>
 
